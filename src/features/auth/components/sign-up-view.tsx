@@ -1,11 +1,11 @@
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { SignUp as ClerkSignUpForm } from '@clerk/nextjs';
 import { GitHubLogoIcon } from '@radix-ui/react-icons';
 import { IconStar } from '@tabler/icons-react';
 import { Metadata } from 'next';
 import Link from 'next/link';
 import { InteractiveGridPattern } from './interactive-grid';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export const metadata: Metadata = {
   title: 'Authentication',
@@ -78,11 +78,17 @@ export default function SignUpViewPage({ stars }: { stars: number }) {
               <span className='font-display font-medium'>{stars}</span>
             </div>
           </Link>
-          <ClerkSignUpForm
-            initialValues={{
-              emailAddress: 'your_mail+clerk_test@example.com'
-            }}
-          />
+          <Card className='w-full'>
+            <CardHeader>
+              <CardTitle>Cadastro desativado</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className='text-muted-foreground text-sm'>
+                O aplicativo nao usa Clerk. Substitua este bloco pelo seu
+                proprio fluxo de cadastro.
+              </p>
+            </CardContent>
+          </Card>
           <p className='text-muted-foreground px-8 text-center text-sm'>
             By clicking continue, you agree to our{' '}
             <Link
