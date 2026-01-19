@@ -1,6 +1,7 @@
 'use client';
 
 import PageContainer from '@/components/layout/page-container';
+import { ChartConfig } from '@/components/ui/chart';
 import { PieGraph } from '@/features/overview/components/pie-graph';
 import { LineGraph } from '@/features/overview/components/line-graph';
 
@@ -11,7 +12,15 @@ const lineTones = {
 
 const sectorTone = 'var(--primary)';
 
-const pieCharts = [
+type PieChartDefinition = {
+  title: string;
+  caption: string;
+  config: ChartConfig;
+  data: { name: string; value: number }[];
+  centerLabel: string;
+};
+
+const pieCharts: PieChartDefinition[] = [
   {
     title: 'Automacao',
     caption: 'Faturamento por setor',
