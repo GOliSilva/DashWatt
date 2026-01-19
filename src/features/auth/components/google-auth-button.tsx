@@ -1,12 +1,11 @@
 'use client';
 
+import { Button } from '@/components/ui/button';
 import { firebaseAuth } from '@/lib/firebase/client';
 import { FirebaseError } from 'firebase/app';
-import { GithubAuthProvider, signInWithPopup } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Icons } from '@/components/icons';
 import { toast } from 'sonner';
 
 const errorMessages: Record<string, string> = {
@@ -18,13 +17,13 @@ const errorMessages: Record<string, string> = {
 
 const getAuthErrorMessage = (error: unknown) => {
   if (error instanceof FirebaseError) {
-    return errorMessages[error.code] ?? 'Nao foi possivel entrar com GitHub.';
+    return errorMessages[error.code] ?? 'Nao foi possivel entrar com Google.';
   }
 
-  return 'Nao foi possivel entrar com GitHub.';
+  return 'Nao foi possivel entrar com Google.';
 };
 
-export default function GithubSignInButton({
+export default function GoogleSignInButton({
   disabled
 }: {
   disabled?: boolean;
@@ -34,7 +33,7 @@ export default function GithubSignInButton({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
-  const handleGithubSignIn = async () => {
+  const handleGoogleSignIn = async () => {
     if (!firebaseAuth) {
       toast.error('Firebase nao configurado.');
       return;
@@ -42,7 +41,7 @@ export default function GithubSignInButton({
 
     setLoading(true);
     try {
-      const provider = new GithubAuthProvider();
+      const provider = new GoogleAuthProvider();
       await signInWithPopup(firebaseAuth, provider);
       toast.success('Login realizado com sucesso!');
       router.replace(callbackUrl);
@@ -58,11 +57,10 @@ export default function GithubSignInButton({
       className='w-full'
       variant='outline'
       type='button'
-      onClick={handleGithubSignIn}
+      onClick={handleGoogleSignIn}
       disabled={disabled || loading}
     >
-      <Icons.github className='mr-2 h-4 w-4' />
-      Continue com GitHub
+      Continue com Google
     </Button>
   );
 }

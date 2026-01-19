@@ -21,6 +21,9 @@ Keep it updated when structure or conventions change.
 
 ## Auth
 - Clerk is removed; pages/components use local placeholders.
+- Firebase auth lives in `src/lib/firebase/client.ts` with `AuthProvider` and
+  `AuthGuard` under `src/features/auth/components`.
+- Sign-in/sign-up views use `UserAuthForm` with email/password + GitHub/Google popup.
 
 ## Acompanhamento (custom)
 - List page: `src/app/dashboard/acompanhamento/page.tsx`.

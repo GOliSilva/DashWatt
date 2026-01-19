@@ -10,19 +10,52 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { UserAvatarProfile } from '@/components/user-avatar-profile';
+import { firebaseAuth } from '@/lib/firebase/client';
+import { signOut } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/features/auth/components/auth-provider';
+import { toast } from 'sonner';
 export function UserNav() {
-  const user = {
-    fullName: 'Usuario local',
-    imageUrl: '',
-    emailAddresses: [{ emailAddress: 'usuario@local' }]
-  };
   const router = useRouter();
+  const { user, loading } = useAuth();
+
+  const userProfile = user
+    ? {
+        fullName: user.displayName ?? user.email ?? 'Usuario',
+        imageUrl: user.photoURL ?? '',
+        emailAddresses: [{ emailAddress: user.email ?? '' }]
+      }
+    : null;
+
+  const handleSignOut = async () => {
+    if (!firebaseAuth) {
+      toast.error('Firebase nao configurado.');
+      return;
+    }
+
+    try {
+      await signOut(firebaseAuth);
+      router.replace('/auth/sign-in');
+    } catch (error) {
+      toast.error('Nao foi possivel sair.');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className='h-8 w-8 animate-pulse rounded-full bg-muted' />
+    );
+  }
+
+  if (!userProfile) {
+    return null;
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant='ghost' className='relative h-8 w-8 rounded-full'>
-          <UserAvatarProfile user={user} />
+          <UserAvatarProfile user={userProfile} />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -33,9 +66,11 @@ export function UserNav() {
       >
         <DropdownMenuLabel className='font-normal'>
           <div className='flex flex-col space-y-1'>
-            <p className='text-sm leading-none font-medium'>{user.fullName}</p>
+            <p className='text-sm leading-none font-medium'>
+              {userProfile.fullName}
+            </p>
             <p className='text-muted-foreground text-xs leading-none'>
-              {user.emailAddresses[0].emailAddress}
+              {userProfile.emailAddresses[0].emailAddress}
             </p>
           </div>
         </DropdownMenuLabel>
@@ -51,9 +86,7 @@ export function UserNav() {
           <DropdownMenuItem>New Team</DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => router.push('/')}>
-          Sair
-        </DropdownMenuItem>
+        <DropdownMenuItem onClick={handleSignOut}>Sair</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

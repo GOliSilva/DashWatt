@@ -5,7 +5,14 @@ import { IconStar } from '@tabler/icons-react';
 import { Metadata } from 'next';
 import Link from 'next/link';
 import { InteractiveGridPattern } from './interactive-grid';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from '@/components/ui/card';
+import UserAuthForm from './user-auth-form';
 
 export const metadata: Metadata = {
   title: 'Authentication',
@@ -16,13 +23,13 @@ export default function SignInViewPage({ stars }: { stars: number }) {
   return (
     <div className='relative h-screen flex-col items-center justify-center md:grid lg:max-w-none lg:grid-cols-2 lg:px-0'>
       <Link
-        href='/examples/authentication'
+        href='/auth/sign-up'
         className={cn(
           buttonVariants({ variant: 'ghost' }),
           'absolute top-4 right-4 hidden md:top-8 md:right-8'
         )}
       >
-        Login
+        Criar conta
       </Link>
       <div className='bg-muted relative hidden h-full flex-col p-10 text-white lg:flex dark:border-r'>
         <div className='absolute inset-0 bg-zinc-900' />
@@ -80,12 +87,20 @@ export default function SignInViewPage({ stars }: { stars: number }) {
           </Link>
           <Card className='w-full'>
             <CardHeader>
-              <CardTitle>Login desativado</CardTitle>
+              <CardTitle>Entrar</CardTitle>
+              <CardDescription>Use seu email e senha.</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className='text-muted-foreground text-sm'>
-                O aplicativo nao usa Clerk. Substitua este bloco pelo seu
-                proprio fluxo de autenticacao.
+              <UserAuthForm mode='sign-in' />
+              <p className='text-muted-foreground mt-4 text-center text-sm'>
+                Ainda nao tem conta?{' '}
+                <Link
+                  href='/auth/sign-up'
+                  className='hover:text-primary underline underline-offset-4'
+                >
+                  Criar conta
+                </Link>
+                .
               </p>
             </CardContent>
           </Card>
