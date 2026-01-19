@@ -1,6 +1,5 @@
 'use client';
 import * as React from 'react';
-import Link from 'next/link';
 import PageContainer from '@/components/layout/page-container';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -237,11 +236,6 @@ export default function MembroPage() {
           </Card>
         </div>
 
-        <div>
-          <Button asChild variant='outline'>
-            <Link href='/dashboard/acompanhamento'>Voltar</Link>
-          </Button>
-        </div>
       </div>
     </PageContainer>
   );

@@ -1,6 +1,5 @@
 'use client';
 import * as React from 'react';
-import Link from 'next/link';
 import PageContainer from '@/components/layout/page-container';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,7 +11,10 @@ import {
   CardTitle
 } from '@/components/ui/card';
 import { Calendar } from '@/components/ui/calendar';
+import { Input } from '@/components/ui/input';
+import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Textarea } from '@/components/ui/textarea';
 
 const tasks = [
   {
@@ -64,60 +66,43 @@ const statusStyles: Record<string, string> = {
   Bloqueado: 'bg-red-500/10 text-red-700'
 };
 
-const memberInfo = {
-  name: 'Ana Costa',
-  email: 'ana.costa@exemplo.com',
-  sector: 'Design',
-  cpf: '123.456.789-00',
-  role: 'Designer'
-};
-
-const alerts = [
-  {
-    id: 'alert-1',
-    title: 'Entrega proxima',
-    detail: 'Revisar prototipos ate sexta-feira',
-    level: 'alto',
-    time: 'ha 2 horas'
-  },
-  {
-    id: 'alert-2',
-    title: 'Pendencia de aprovacao',
-    detail: 'Feedback do cliente pendente',
-    level: 'medio',
-    time: 'ha 5 horas'
-  },
-  {
-    id: 'alert-3',
-    title: 'Reuniao marcada',
-    detail: 'Daily com engenharia amanha',
-    level: 'baixo',
-    time: 'ha 1 dia'
-  },
-  {
-    id: 'alert-4',
-    title: 'Ajuste urgente',
-    detail: 'Atualizar layout da home',
-    level: 'alto',
-    time: 'ha 30 min'
-  }
-];
-
-const alertLevelStyles: Record<string, string> = {
-  alto: 'bg-red-500/10 text-red-700',
-  medio: 'bg-amber-500/10 text-amber-700',
-  baixo: 'bg-emerald-500/10 text-emerald-700'
-};
-
 export default function MembroPage() {
   const [selectedDay, setSelectedDay] = React.useState<Date | undefined>(
     new Date()
   );
+  const totalSeconds = 4 * 60 * 60;
+  const [elapsedSeconds, setElapsedSeconds] = React.useState(0);
+  const [isRunning, setIsRunning] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!isRunning) {
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setElapsedSeconds((current) => {
+        if (current >= totalSeconds) {
+          setIsRunning(false);
+          return totalSeconds;
+        }
+        return current + 1;
+      });
+    }, 1000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [isRunning, totalSeconds]);
+
+  const progressValue = (elapsedSeconds / totalSeconds) * 100;
+  const formattedTime = new Date(elapsedSeconds * 1000)
+    .toISOString()
+    .slice(11, 19);
 
   return (
     <PageContainer
       pageTitle='Membro'
-      pageDescription='Tarefas, calendario e alertas'
+      pageDescription='Agenda, tarefas e tempo semanal'
     >
       <div className='flex flex-1 flex-col space-y-4'>
         <div className='*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs lg:grid-cols-2'>
@@ -173,30 +158,43 @@ export default function MembroPage() {
 
           <Card className='h-full'>
             <CardHeader>
-              <CardTitle>Informacoes</CardTitle>
-              <CardDescription>Dados do membro</CardDescription>
+              <CardTitle>Agenda</CardTitle>
+              <CardDescription>Novo compromisso</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className='grid grid-cols-1 gap-3 text-sm sm:grid-cols-2'>
-                <div className='rounded-md border p-3'>
-                  <div className='text-muted-foreground text-xs'>Nome</div>
-                  <div className='mt-1 font-medium'>{memberInfo.name}</div>
+              <div className='space-y-3 rounded-md border p-4'>
+                <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
+                  <div className='space-y-1'>
+                    <label className='text-sm font-medium' htmlFor='agendaDate'>
+                      Data
+                    </label>
+                    <Input id='agendaDate' type='date' />
+                  </div>
+                  <div className='space-y-1'>
+                    <label
+                      className='text-sm font-medium'
+                      htmlFor='agendaTitle'
+                    >
+                      Nome da atividade
+                    </label>
+                    <Input
+                      id='agendaTitle'
+                      placeholder='Ex: Visita tecnica'
+                    />
+                  </div>
                 </div>
-                <div className='rounded-md border p-3'>
-                  <div className='text-muted-foreground text-xs'>Email</div>
-                  <div className='mt-1 font-medium'>{memberInfo.email}</div>
+                <div className='space-y-1'>
+                  <label className='text-sm font-medium' htmlFor='agendaNotes'>
+                    Descricao
+                  </label>
+                  <Textarea
+                    id='agendaNotes'
+                    placeholder='Detalhes do compromisso'
+                    className='min-h-16'
+                  />
                 </div>
-                <div className='rounded-md border p-3'>
-                  <div className='text-muted-foreground text-xs'>Setor</div>
-                  <div className='mt-1 font-medium'>{memberInfo.sector}</div>
-                </div>
-                <div className='rounded-md border p-3'>
-                  <div className='text-muted-foreground text-xs'>CPF</div>
-                  <div className='mt-1 font-medium'>{memberInfo.cpf}</div>
-                </div>
-                <div className='rounded-md border p-3 sm:col-span-2'>
-                  <div className='text-muted-foreground text-xs'>Cargo</div>
-                  <div className='mt-1 font-medium'>{memberInfo.role}</div>
+                <div className='flex justify-end'>
+                  <Button type='button'>Adicionar</Button>
                 </div>
               </div>
             </CardContent>
@@ -204,44 +202,40 @@ export default function MembroPage() {
 
           <Card className='h-full'>
             <CardHeader>
-              <CardTitle>Alertas</CardTitle>
-              <CardDescription>Itens para acompanhamento</CardDescription>
+              <CardTitle>Timer semanal</CardTitle>
+              <CardDescription>Controle de 0 a 4 horas</CardDescription>
             </CardHeader>
-            <CardContent>
-              <ScrollArea className='h-56 pr-3'>
-                <div className='space-y-2'>
-                  {alerts.map((alert) => (
-                    <div
-                      key={alert.id}
-                      className='flex items-start justify-between gap-3 rounded-md border p-3'
-                    >
-                      <div className='flex flex-col'>
-                        <span className='text-sm font-medium'>
-                          {alert.title}
-                        </span>
-                        <span className='text-muted-foreground text-xs'>
-                          {alert.detail}
-                        </span>
-                        <span className='text-muted-foreground text-xs'>
-                          {alert.time}
-                        </span>
-                      </div>
-                      <Badge className={alertLevelStyles[alert.level]}>
-                        {alert.level}
-                      </Badge>
-                    </div>
-                  ))}
+            <CardContent className='space-y-4'>
+              <div className='flex items-center justify-between'>
+                <div>
+                  <div className='text-sm font-medium'>Tempo</div>
+                  <div className='text-2xl font-semibold'>{formattedTime}</div>
                 </div>
-              </ScrollArea>
+                <Button
+                  type='button'
+                  variant={isRunning ? 'outline' : 'default'}
+                  onClick={() => setIsRunning((current) => !current)}
+                >
+                  {isRunning ? 'Pausar' : 'Iniciar'}
+                </Button>
+              </div>
+              <div className='space-y-2'>
+                <div className='flex items-center justify-between text-xs text-muted-foreground'>
+                  <span>0h</span>
+                  <span>4h</span>
+                </div>
+                <Progress value={progressValue} />
+                <div className='text-sm'>
+                  Progresso:{' '}
+                  <span className='font-medium'>
+                    {Math.round(progressValue)}%
+                  </span>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
 
-        <div>
-          <Button asChild variant='outline'>
-            <Link href='/dashboard/acompanhamento'>Voltar</Link>
-          </Button>
-        </div>
       </div>
     </PageContainer>
   );
