@@ -83,6 +83,27 @@ export const navItems: NavItem[] = [
     items: []
   },
   {
+    title: 'Membro',
+    url: '/dashboard/membro',
+    icon: 'user',
+    isActive: false,
+    items: []
+  },
+  {
+    title: 'Estatisticas',
+    url: '/dashboard/estatisticas',
+    icon: 'chart',
+    isActive: false,
+    items: []
+  },
+  {
+    title: 'Precificacao',
+    url: '/dashboard/precificacao',
+    icon: 'page',
+    isActive: false,
+    items: []
+  },
+  {
     title: 'Pro',
     url: '#', // Placeholder as there is no direct link for the parent
     icon: 'pro',

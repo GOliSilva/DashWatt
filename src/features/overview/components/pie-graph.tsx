@@ -19,18 +19,32 @@ import {
   ChartTooltipContent
 } from '@/components/ui/chart';
 
-const chartData = [
-  { browser: 'chrome', visitors: 275, fill: 'var(--primary)' },
-  { browser: 'safari', visitors: 200, fill: 'var(--primary-light)' },
-  { browser: 'firefox', visitors: 287, fill: 'var(--primary-lighter)' },
-  { browser: 'edge', visitors: 173, fill: 'var(--primary-dark)' },
-  { browser: 'other', visitors: 190, fill: 'var(--primary-darker)' }
+type PieDatum = {
+  name: string;
+  value: number;
+};
+
+type PieGraphProps = {
+  title?: string;
+  description?: string;
+  shortDescription?: string;
+  data?: PieDatum[];
+  config?: ChartConfig;
+  centerLabel?: string;
+  className?: string;
+  innerRadius?: number | string;
+  outerRadius?: number | string;
+};
+
+const defaultData: PieDatum[] = [
+  { name: 'chrome', value: 275 },
+  { name: 'safari', value: 200 },
+  { name: 'firefox', value: 287 },
+  { name: 'edge', value: 173 },
+  { name: 'other', value: 190 }
 ];
 
-const chartConfig = {
-  visitors: {
-    label: 'Visitors'
-  },
+const defaultConfig = {
   chrome: {
     label: 'Chrome',
     color: 'var(--primary)'
@@ -53,65 +67,71 @@ const chartConfig = {
   }
 } satisfies ChartConfig;
 
-export function PieGraph() {
-  const totalVisitors = React.useMemo(() => {
-    return chartData.reduce((acc, curr) => acc + curr.visitors, 0);
-  }, []);
+export function PieGraph({
+  title = 'Pie Chart - Donut with Text',
+  description = 'Total visitors by browser for the last 6 months',
+  shortDescription,
+  data = defaultData,
+  config = defaultConfig,
+  centerLabel = 'Total Visitors',
+  className,
+  innerRadius = 60,
+  outerRadius
+}: PieGraphProps) {
+  const totalValue = React.useMemo(() => {
+    return data.reduce((acc, curr) => acc + curr.value, 0);
+  }, [data]);
 
   return (
-    <Card className='@container/card'>
+    <Card className={`@container/card ${className || ''}`.trim()}>
       <CardHeader>
-        <CardTitle>Pie Chart - Donut with Text</CardTitle>
+        <CardTitle>{title}</CardTitle>
         <CardDescription>
-          <span className='hidden @[540px]/card:block'>
-            Total visitors by browser for the last 6 months
+          <span className='hidden @[540px]/card:block'>{description}</span>
+          <span className='@[540px]/card:hidden'>
+            {shortDescription || description}
           </span>
-          <span className='@[540px]/card:hidden'>Browser distribution</span>
         </CardDescription>
       </CardHeader>
       <CardContent className='px-2 pt-4 sm:px-6 sm:pt-6'>
-        <ChartContainer
-          config={chartConfig}
-          className='mx-auto aspect-square h-[250px]'
-        >
+        <ChartContainer config={config} className='mx-auto aspect-square h-[250px]'>
           <PieChart>
             <defs>
-              {['chrome', 'safari', 'firefox', 'edge', 'other'].map(
-                (browser, index) => (
-                  <linearGradient
-                    key={browser}
-                    id={`fill${browser}`}
-                    x1='0'
-                    y1='0'
-                    x2='0'
-                    y2='1'
-                  >
-                    <stop
-                      offset='0%'
-                      stopColor='var(--primary)'
-                      stopOpacity={1 - index * 0.15}
-                    />
-                    <stop
-                      offset='100%'
-                      stopColor='var(--primary)'
-                      stopOpacity={0.8 - index * 0.15}
-                    />
-                  </linearGradient>
-                )
-              )}
+              {data.map((item, index) => (
+                <linearGradient
+                  key={item.name}
+                  id={`fill${item.name}`}
+                  x1='0'
+                  y1='0'
+                  x2='0'
+                  y2='1'
+                >
+                  <stop
+                    offset='0%'
+                    stopColor={`var(--color-${item.name})`}
+                    stopOpacity={1 - index * 0.1}
+                  />
+                  <stop
+                    offset='100%'
+                    stopColor={`var(--color-${item.name})`}
+                    stopOpacity={0.6 - index * 0.08}
+                  />
+                </linearGradient>
+              ))}
             </defs>
             <ChartTooltip
               cursor={false}
-              content={<ChartTooltipContent hideLabel />}
+              content={<ChartTooltipContent hideLabel nameKey='name' />}
             />
             <Pie
-              data={chartData.map((item) => ({
+              data={data.map((item) => ({
                 ...item,
-                fill: `url(#fill${item.browser})`
+                fill: `url(#fill${item.name})`
               }))}
-              dataKey='visitors'
-              nameKey='browser'
-              innerRadius={60}
+              dataKey='value'
+              nameKey='name'
+              innerRadius={innerRadius}
+              outerRadius={outerRadius}
               strokeWidth={2}
               stroke='var(--background)'
             >
@@ -130,14 +150,14 @@ export function PieGraph() {
                           y={viewBox.cy}
                           className='fill-foreground text-3xl font-bold'
                         >
-                          {totalVisitors.toLocaleString()}
+                          {totalValue.toLocaleString()}
                         </tspan>
                         <tspan
                           x={viewBox.cx}
                           y={(viewBox.cy || 0) + 24}
                           className='fill-muted-foreground text-sm'
                         >
-                          Total Visitors
+                          {centerLabel}
                         </tspan>
                       </text>
                     );
@@ -150,12 +170,14 @@ export function PieGraph() {
       </CardContent>
       <CardFooter className='flex-col gap-2 text-sm'>
         <div className='flex items-center gap-2 leading-none font-medium'>
-          Chrome leads with{' '}
-          {((chartData[0].visitors / totalVisitors) * 100).toFixed(1)}%{' '}
-          <IconTrendingUp className='h-4 w-4' />
+          {data[0]?.name ? `${data[0].name} lidera com` : 'Destaque:'}{' '}
+          {data[0]
+            ? ((data[0].value / totalValue) * 100).toFixed(1)
+            : '0'}
+          % <IconTrendingUp className='h-4 w-4' />
         </div>
         <div className='text-muted-foreground leading-none'>
-          Based on data from January - June 2024
+          Baseado nos dados mais recentes
         </div>
       </CardFooter>
     </Card>

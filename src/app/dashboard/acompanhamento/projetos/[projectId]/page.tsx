@@ -3,6 +3,7 @@ import * as React from 'react';
 import PageContainer from '@/components/layout/page-container';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import projectData from '@/data/acompanhamento-project.json';
 import {
   Card,
   CardAction,
@@ -30,84 +31,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 
-const activities = [
-  {
-    id: 'kickoff',
-    name: 'Kickoff com stakeholders',
-    issuedAt: '12/01/2026',
-    dueAt: '20/01/2026',
-    owner: 'Ana Costa',
-    priority: 'Alta',
-    description: 'Alinhar objetivos, riscos e metas do projeto.'
-  },
-  {
-    id: 'wireframes',
-    name: 'Wireframes iniciais',
-    issuedAt: '13/01/2026',
-    dueAt: '24/01/2026',
-    owner: 'Renata Alves',
-    priority: 'Media',
-    description: 'Mapear fluxo e principais telas da solucao.'
-  },
-  {
-    id: 'api-spec',
-    name: 'Especificacao da API',
-    issuedAt: '14/01/2026',
-    dueAt: '28/01/2026',
-    owner: 'Bruno Lima',
-    priority: 'Alta',
-    description: 'Definir contratos, payloads e regras de negocio.'
-  },
-  {
-    id: 'qa-plan',
-    name: 'Plano de testes',
-    issuedAt: '15/01/2026',
-    dueAt: '30/01/2026',
-    owner: 'Marina Silva',
-    priority: 'Baixa',
-    description: 'Criar cobertura minima para cada fluxo critico.'
-  }
-];
-
-const projectInfo = {
-  name: 'Projeto Atlas',
-  client: 'ACME Industria',
-  status: 'Em andamento',
-  start: '08/01/2026',
-  next: 'Revisao de escopo',
-  manager: 'Mariana Ribeiro'
-};
-
-const updates = [
-  {
-    id: 'update-1',
-    activityId: 'kickoff',
-    author: 'Paulo Melo',
-    note: 'Resumo enviado para o time.',
-    time: 'Hoje, 09:12'
-  },
-  {
-    id: 'update-2',
-    activityId: 'kickoff',
-    author: 'Ana Costa',
-    note: 'Pontos de risco mapeados.',
-    time: 'Ontem, 17:40'
-  },
-  {
-    id: 'update-3',
-    activityId: 'wireframes',
-    author: 'Renata Alves',
-    note: 'Fluxo principal aprovado.',
-    time: 'Hoje, 11:30'
-  },
-  {
-    id: 'update-4',
-    activityId: 'api-spec',
-    author: 'Bruno Lima',
-    note: 'Contrato inicial publicado.',
-    time: 'Hoje, 10:05'
-  }
-];
+const { project: projectInfo, activities, updates } = projectData;
 
 const priorities: Record<string, string> = {
   Alta: 'bg-red-500/10 text-red-700',
@@ -252,6 +176,9 @@ export default function ProjetoPage() {
                       Inicio: {projectInfo.start}
                     </DropdownMenuItem>
                     <DropdownMenuItem>Proximo: {projectInfo.next}</DropdownMenuItem>
+                    <DropdownMenuItem>
+                      Valor: {projectInfo.value}
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </CardAction>

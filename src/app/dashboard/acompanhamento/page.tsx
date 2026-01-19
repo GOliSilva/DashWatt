@@ -144,6 +144,8 @@ const statusOptions = [
   'Validacao'
 ];
 
+const scopeOptions = ['Geral', 'Automacao', 'Eletrica'];
+
 const memberStatusStyles: Record<string, string> = {
   online: 'bg-emerald-500/10 text-emerald-700',
   away: 'bg-amber-500/10 text-amber-700',
@@ -157,6 +159,7 @@ const alertLevelStyles: Record<string, string> = {
 };
 
 export default function AcompanhamentoPage() {
+  const [scopeFilter, setScopeFilter] = React.useState('Geral');
   const [statusFilter, setStatusFilter] = React.useState('Todos');
   const filteredProjects =
     statusFilter === 'Todos'
@@ -167,6 +170,20 @@ export default function AcompanhamentoPage() {
     <PageContainer
       pageTitle='Acompanhamento'
       pageDescription='Visao geral das frentes em andamento'
+      pageHeaderAction={
+        <Select value={scopeFilter} onValueChange={setScopeFilter}>
+          <SelectTrigger className='h-8 w-[160px]' aria-label='Filtrar area'>
+            <SelectValue placeholder='Area' />
+          </SelectTrigger>
+          <SelectContent align='end'>
+            {scopeOptions.map((scope) => (
+              <SelectItem key={scope} value={scope}>
+                {scope}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      }
     >
       <div className='flex flex-1 flex-col space-y-4'>
         <div className='*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs lg:grid-cols-2'>
@@ -232,7 +249,7 @@ export default function AcompanhamentoPage() {
                   {members.map((member) => (
                     <Link
                       key={member.id}
-                      href={`/dashboard/acompanhamento?membro=${member.id}`}
+                      href={`/dashboard/acompanhamento/membros/${member.id}`}
                       className='hover:bg-accent focus-visible:ring-ring/50 flex w-full items-start justify-between gap-3 rounded-md border p-3 text-left transition-colors focus-visible:ring-[3px] focus-visible:outline-none'
                     >
                       <div className='flex flex-col'>
