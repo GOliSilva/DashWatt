@@ -36,6 +36,16 @@ type PieGraphProps = {
   outerRadius?: number | string;
 };
 
+const formatCompactNumber = (value: number): string => {
+  if (value >= 1000000) {
+    return (value / 1000000).toFixed(1).replace('.', ',') + 'M';
+  }
+  if (value >= 1000) {
+    return (value / 1000).toFixed(1).replace('.', ',') + 'k';
+  }
+  return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
 const defaultData: PieDatum[] = [
   { name: 'chrome', value: 275 },
   { name: 'safari', value: 200 },
@@ -150,7 +160,7 @@ export function PieGraph({
                           y={viewBox.cy}
                           className='fill-foreground text-3xl font-bold'
                         >
-                          {totalValue.toLocaleString()}
+                          {formatCompactNumber(totalValue)}
                         </tspan>
                         <tspan
                           x={viewBox.cx}
@@ -170,11 +180,7 @@ export function PieGraph({
       </CardContent>
       <CardFooter className='flex-col gap-2 text-sm'>
         <div className='flex items-center gap-2 leading-none font-medium'>
-          {data[0]?.name ? `${data[0].name} lidera com` : 'Destaque:'}{' '}
-          {data[0]
-            ? ((data[0].value / totalValue) * 100).toFixed(1)
-            : '0'}
-          % <IconTrendingUp className='h-4 w-4' />
+          {shortDescription || description} <IconTrendingUp className='h-4 w-4' />
         </div>
         <div className='text-muted-foreground leading-none'>
           Baseado nos dados mais recentes

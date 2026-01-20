@@ -61,7 +61,6 @@ type Project = {
   status: string;
   updated: string;
   health: string;
-  scope: string;
   area?: string;
   tipo?: string;
   client?: string;
@@ -162,7 +161,6 @@ const statusOptions = [
   'Validacao'
 ];
 
-const scopeOptions = ['Geral', 'Automacao', 'Eletrica'];
 const projectStatusOptions = statusOptions.filter(
   (status) => status !== 'Todos'
 );
@@ -203,7 +201,6 @@ type ProjectFormState = {
   name: string;
   status: string;
   health: string;
-  scope: string;
   area: string;
   tipo: string;
   client: string;
@@ -223,7 +220,7 @@ type MemberFormState = {
 };
 
 export default function AcompanhamentoPage() {
-  const [scopeFilter, setScopeFilter] = React.useState('Geral');
+  const [areaFilter, setAreaFilter] = React.useState('Geral');
   const [statusFilter, setStatusFilter] = React.useState('Todos');
   const [projectList, setProjectList] = React.useState<Project[]>([]);
   const [isProjectsLoading, setIsProjectsLoading] = React.useState(true);
@@ -242,7 +239,6 @@ export default function AcompanhamentoPage() {
     name: '',
     status: projectStatusOptions[0],
     health: healthOptions[2],
-    scope: scopeOptions[1],
     area: areaOptions[0],
     tipo: tiposAutomacao[0],
     client: '',
@@ -350,7 +346,8 @@ export default function AcompanhamentoPage() {
             updatedLabel: string;
             updatedAt: Timestamp;
             health: string;
-            scope: string;
+            area: string;
+            tipo: string;
             client: string;
             manager: string;
             managerId: string;
@@ -375,7 +372,8 @@ export default function AcompanhamentoPage() {
             status: data.status ?? 'Planejamento',
             updated: updatedLabel,
             health: data.health ?? 'Ok',
-            scope: data.scope ?? 'Geral',
+            area: data.area,
+            tipo: data.tipo,
             client: data.client,
             manager: data.manager,
             managerId: data.managerId,
@@ -425,10 +423,10 @@ export default function AcompanhamentoPage() {
   const filteredProjects = projectList.filter((project) => {
     const statusMatches =
       statusFilter === 'Todos' || project.status === statusFilter;
-    const scopeMatches =
-      scopeFilter === 'Geral' || project.scope === scopeFilter;
+    const areaMatches =
+      areaFilter === 'Geral' || project.area === areaFilter;
 
-    return statusMatches && scopeMatches;
+    return statusMatches && areaMatches;
   });
 
   const handleCreateProject = async (
@@ -460,11 +458,21 @@ export default function AcompanhamentoPage() {
     }
     const managerName = selectedManager.name;
 
+    const parseValueToNumber = (value: string): number => {
+      if (!value) return 0;
+      const cleanValue = value
+        .replace(/R\$/g, '')
+        .replace(/\s/g, '')
+        .replace(/\./g, '')
+        .replace(',', '.');
+      const parsed = parseFloat(cleanValue);
+      return isNaN(parsed) ? 0 : parsed;
+    };
+
     const projectPayload = {
       name: newProject.name.trim(),
       status: newProject.status,
       health: newProject.health,
-      scope: newProject.scope,
       area: newProject.area,
       tipo: newProject.tipo,
       client: newProject.client.trim(),
@@ -472,7 +480,7 @@ export default function AcompanhamentoPage() {
       managerId: newProject.managerId,
       start: startDate ? Timestamp.fromDate(startDate) : null,
       next: newProject.next.trim(),
-      value: newProject.value.trim(),
+      value: parseValueToNumber(newProject.value.trim()),
       updatedLabel: 'agora',
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
@@ -491,7 +499,6 @@ export default function AcompanhamentoPage() {
           status: projectPayload.status,
           updated: projectPayload.updatedLabel,
           health: projectPayload.health,
-          scope: projectPayload.scope,
           area: projectPayload.area,
           tipo: projectPayload.tipo,
           client: projectPayload.client,
@@ -508,7 +515,6 @@ export default function AcompanhamentoPage() {
         name: '',
         status: projectStatusOptions[0],
         health: healthOptions[2],
-        scope: scopeOptions[1],
         area: areaOptions[0],
         tipo: tiposAutomacao[0],
         client: '',
@@ -611,16 +617,14 @@ export default function AcompanhamentoPage() {
       pageTitle='Acompanhamento'
       pageDescription='Visao geral das frentes em andamento'
       pageHeaderAction={
-        <Select value={scopeFilter} onValueChange={setScopeFilter}>
+        <Select value={areaFilter} onValueChange={setAreaFilter}>
           <SelectTrigger className='h-8 w-40' aria-label='Filtrar area'>
             <SelectValue placeholder='Area' />
           </SelectTrigger>
           <SelectContent align='end'>
-            {scopeOptions.map((scope) => (
-              <SelectItem key={scope} value={scope}>
-                {scope}
-              </SelectItem>
-            ))}
+            <SelectItem value='Geral'>Geral</SelectItem>
+            <SelectItem value='Automacao'>Automacao</SelectItem>
+            <SelectItem value='Eletrica'>Eletrica</SelectItem>
           </SelectContent>
         </Select>
       }
@@ -756,7 +760,7 @@ export default function AcompanhamentoPage() {
                               </SelectContent>
                             </Select>
                           </div>
-                          <div className='grid gap-3 sm:grid-cols-2'>
+                          <div className='grid gap-3 sm:grid-cols-3'>
                             <Select
                               value={newProject.health}
                               disabled={isSaving}
@@ -776,29 +780,6 @@ export default function AcompanhamentoPage() {
                                     {health}
                                   </SelectItem>
                                 ))}
-                              </SelectContent>
-                            </Select>
-                            <Select
-                              value={newProject.scope}
-                              disabled={isSaving}
-                              onValueChange={(value) =>
-                                setNewProject((current) => ({
-                                  ...current,
-                                  scope: value
-                                }))
-                              }
-                            >
-                              <SelectTrigger aria-label='Escopo do projeto'>
-                                <SelectValue placeholder='Escopo' />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {scopeOptions
-                                  .filter((scope) => scope !== 'Geral')
-                                  .map((scope) => (
-                                    <SelectItem key={scope} value={scope}>
-                                      {scope}
-                                    </SelectItem>
-                                  ))}
                               </SelectContent>
                             </Select>
                           </div>
