@@ -6,7 +6,8 @@ import { ChartConfig } from '@/components/ui/chart';
 import { PieGraph } from '@/features/overview/components/pie-graph';
 import { LineGraph } from '@/features/overview/components/line-graph';
 import { firebaseDb } from '@/lib/firebase/client';
-import { collection, getDocs, doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, onSnapshot } from 'firebase/firestore';
+import { useFirebaseData } from '@/contexts/firebase-data-context';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -179,16 +180,6 @@ const calculateDailyRevenue = (projects: Project[], testDate?: Date) => {
   return monthlyData;
 };
 
-type Project = {
-  id: string;
-  name: string;
-  area?: string;
-  tipo?: string;
-  value?: number;
-  createdAt?: any;
-  start?: any;
-};
-
 const formatCurrency = (value: number): string => {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
@@ -197,9 +188,9 @@ const formatCurrency = (value: number): string => {
 };
 
 export default function EstatisticasPage() {
+  const { projects, isLoading: isLoadingData } = useFirebaseData();
   const [pieCharts, setPieCharts] = React.useState<PieChartDefinition[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [metaAnual, setMetaAnual] = React.useState(1320000); // Meta padrão
+  const [metaAnual, setMetaAnual] = React.useState(1320000);
   const [metaInput, setMetaInput] = React.useState('');
   const [isMetaDialogOpen, setIsMetaDialogOpen] = React.useState(false);
   const [isSavingMeta, setIsSavingMeta] = React.useState(false);
@@ -208,25 +199,26 @@ export default function EstatisticasPage() {
   const [testDateInput, setTestDateInput] = React.useState('');
   const [isTestDateDialogOpen, setIsTestDateDialogOpen] = React.useState(false);
 
-  // Carregar meta do Firestore
+  // Carregar meta do Firestore com onSnapshot
   React.useEffect(() => {
-    const loadMeta = async () => {
-      if (!firebaseDb) return;
-      
-      try {
-        const metaDoc = await getDoc(doc(firebaseDb, 'config', 'metaAnual'));
+    if (!firebaseDb) return;
+    
+    const unsubscribe = onSnapshot(
+      doc(firebaseDb, 'config', 'metaAnual'),
+      (metaDoc) => {
         if (metaDoc.exists()) {
           const meta = metaDoc.data().value || 1320000;
           setMetaAnual(meta);
           setGoalData(generateGoalData(meta, testDate));
         }
-      } catch (error) {
-        console.error('Erro ao carregar meta:', error);
+      },
+      (error) => {
+        console.error('Erro ao escutar meta:', error);
       }
-    };
+    );
 
-    loadMeta();
-  }, []);
+    return () => unsubscribe();
+  }, [testDate]);
 
   const handleSaveMeta = async () => {
     const novoValor = parseFloat(metaInput.replace(/[^\d,]/g, '').replace(',', '.'));
@@ -262,135 +254,107 @@ export default function EstatisticasPage() {
   };
 
   React.useEffect(() => {
-    const fetchProjects = async () => {
-      if (!firebaseDb) {
-        console.error('Firebase não configurado');
-        setIsLoading(false);
-        return;
+    if (isLoadingData || !projects) return;
+
+    console.log('Processando projetos:', projects);
+
+    // Calcular faturamento diário
+    const dailyRevenue = calculateDailyRevenue(projects, testDate);
+    
+    // Atualizar goalData com faturamento real
+    const updatedGoalData = generateGoalData(metaAnual, testDate).map((item) => ({
+      ...item,
+      faturamento: dailyRevenue[item.month] || 0
+    }));
+    
+    setGoalData(updatedGoalData);
+
+    // Calcular faturamento por tipo
+    const faturamentoDomotica = projects
+      .filter((p) => p.area === 'Automacao' && p.tipo === 'Domotica')
+      .reduce((sum, p) => sum + (p.value || 0), 0);
+
+    const faturamentoIndustrial = projects
+      .filter((p) => p.area === 'Automacao' && p.tipo === 'Industrial')
+      .reduce((sum, p) => sum + (p.value || 0), 0);
+
+    const faturamentoProjetoEletrico = projects
+      .filter((p) => p.area === 'Eletrica' && p.tipo === 'Projeto Eletrico')
+      .reduce((sum, p) => sum + (p.value || 0), 0);
+
+    const faturamentoSolar = projects
+      .filter((p) => p.area === 'Eletrica' && p.tipo === 'Solar')
+      .reduce((sum, p) => sum + (p.value || 0), 0);
+
+    const totalAutomacao = faturamentoDomotica + faturamentoIndustrial;
+    const totalEletrica = faturamentoProjetoEletrico + faturamentoSolar;
+    const totalGeral = totalAutomacao + totalEletrica;
+
+    // Calcular percentuais e determinar líder
+    const percDomotica = totalAutomacao > 0 ? (faturamentoDomotica / totalAutomacao * 100).toFixed(1) : 0;
+    const percIndustrial = totalAutomacao > 0 ? (faturamentoIndustrial / totalAutomacao * 100).toFixed(1) : 0;
+    const percProjetoEletrico = totalEletrica > 0 ? (faturamentoProjetoEletrico / totalEletrica * 100).toFixed(1) : 0;
+    const percSolar = totalEletrica > 0 ? (faturamentoSolar / totalEletrica * 100).toFixed(1) : 0;
+    const percAutomacao = totalGeral > 0 ? (totalAutomacao / totalGeral * 100).toFixed(1) : 0;
+    const percEletrica = totalGeral > 0 ? (totalEletrica / totalGeral * 100).toFixed(1) : 0;
+
+    // Determinar líderes
+    const liderAutomacao = faturamentoDomotica >= faturamentoIndustrial ? 'Domotica' : 'Industrial';
+    const percLiderAutomacao = faturamentoDomotica >= faturamentoIndustrial ? percDomotica : percIndustrial;
+    
+    const liderEletrica = faturamentoProjetoEletrico >= faturamentoSolar ? 'Projeto Eletrico' : 'Solar';
+    const percLiderEletrica = faturamentoProjetoEletrico >= faturamentoSolar ? percProjetoEletrico : percSolar;
+    
+    const liderGeral = totalAutomacao >= totalEletrica ? 'Automacao' : 'Eletrica';
+    const percLiderGeral = totalAutomacao >= totalEletrica ? percAutomacao : percEletrica;
+
+    const charts: PieChartDefinition[] = [
+      {
+        title: 'Automacao',
+        caption: `${liderAutomacao} lidera com ${percLiderAutomacao}%`,
+        config: {
+          domotica: { label: 'Domotica', color: sectorTone },
+          industrial: { label: 'Industrial', color: sectorTone }
+        },
+        data: [
+          { name: 'domotica', value: faturamentoDomotica },
+          { name: 'industrial', value: faturamentoIndustrial }
+        ],
+        centerLabel: formatCurrency(totalAutomacao),
+        totalValue: totalAutomacao
+      },
+      {
+        title: 'Eletrica',
+        caption: `${liderEletrica} lidera com ${percLiderEletrica}%`,
+        config: {
+          projetoEletrico: { label: 'Projeto Eletrico', color: sectorTone },
+          solar: { label: 'Solar', color: sectorTone }
+        },
+        data: [
+          { name: 'projetoEletrico', value: faturamentoProjetoEletrico },
+          { name: 'solar', value: faturamentoSolar }
+        ],
+        centerLabel: formatCurrency(totalEletrica),
+        totalValue: totalEletrica
+      },
+      {
+        title: 'Geral',
+        caption: `${liderGeral} lidera com ${percLiderGeral}%`,
+        config: {
+          automacao: { label: 'Automacao', color: sectorTone },
+          eletrica: { label: 'Eletrica', color: sectorTone }
+        },
+        data: [
+          { name: 'automacao', value: totalAutomacao },
+          { name: 'eletrica', value: totalEletrica }
+        ],
+        centerLabel: formatCurrency(totalGeral),
+        totalValue: totalGeral
       }
+    ];
 
-      try {
-        const projectsSnapshot = await getDocs(collection(firebaseDb, 'projects'));
-        const projects: Project[] = projectsSnapshot.docs.map((doc) => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            name: data.name ?? 'Projeto sem nome',
-            area: data.area,
-            tipo: data.tipo,
-            value: typeof data.value === 'number' ? data.value : 0,
-            createdAt: data.createdAt,
-            start: data.start
-          };
-        });
-
-        console.log('Projetos carregados:', projects);
-
-        // Calcular faturamento diário
-        const dailyRevenue = calculateDailyRevenue(projects, testDate);
-        
-        // Atualizar goalData com faturamento real
-        const updatedGoalData = generateGoalData(metaAnual, testDate).map((item) => ({
-          ...item,
-          faturamento: dailyRevenue[item.month] || 0
-        }));
-        
-        setGoalData(updatedGoalData);
-
-        // Calcular faturamento por tipo
-        const faturamentoDomotica = projects
-          .filter((p) => p.area === 'Automacao' && p.tipo === 'Domotica')
-          .reduce((sum, p) => sum + (p.value || 0), 0);
-
-        const faturamentoIndustrial = projects
-          .filter((p) => p.area === 'Automacao' && p.tipo === 'Industrial')
-          .reduce((sum, p) => sum + (p.value || 0), 0);
-
-        const faturamentoProjetoEletrico = projects
-          .filter((p) => p.area === 'Eletrica' && p.tipo === 'Projeto Eletrico')
-          .reduce((sum, p) => sum + (p.value || 0), 0);
-
-        const faturamentoSolar = projects
-          .filter((p) => p.area === 'Eletrica' && p.tipo === 'Solar')
-          .reduce((sum, p) => sum + (p.value || 0), 0);
-
-        const totalAutomacao = faturamentoDomotica + faturamentoIndustrial;
-        const totalEletrica = faturamentoProjetoEletrico + faturamentoSolar;
-        const totalGeral = totalAutomacao + totalEletrica;
-
-        // Calcular percentuais e determinar líder
-        const percDomotica = totalAutomacao > 0 ? (faturamentoDomotica / totalAutomacao * 100).toFixed(1) : 0;
-        const percIndustrial = totalAutomacao > 0 ? (faturamentoIndustrial / totalAutomacao * 100).toFixed(1) : 0;
-        const percProjetoEletrico = totalEletrica > 0 ? (faturamentoProjetoEletrico / totalEletrica * 100).toFixed(1) : 0;
-        const percSolar = totalEletrica > 0 ? (faturamentoSolar / totalEletrica * 100).toFixed(1) : 0;
-        const percAutomacao = totalGeral > 0 ? (totalAutomacao / totalGeral * 100).toFixed(1) : 0;
-        const percEletrica = totalGeral > 0 ? (totalEletrica / totalGeral * 100).toFixed(1) : 0;
-
-        // Determinar líderes
-        const liderAutomacao = faturamentoDomotica >= faturamentoIndustrial ? 'Domotica' : 'Industrial';
-        const percLiderAutomacao = faturamentoDomotica >= faturamentoIndustrial ? percDomotica : percIndustrial;
-        
-        const liderEletrica = faturamentoProjetoEletrico >= faturamentoSolar ? 'Projeto Eletrico' : 'Solar';
-        const percLiderEletrica = faturamentoProjetoEletrico >= faturamentoSolar ? percProjetoEletrico : percSolar;
-        
-        const liderGeral = totalAutomacao >= totalEletrica ? 'Automacao' : 'Eletrica';
-        const percLiderGeral = totalAutomacao >= totalEletrica ? percAutomacao : percEletrica;
-
-        const charts: PieChartDefinition[] = [
-          {
-            title: 'Automacao',
-            caption: `${liderAutomacao} lidera com ${percLiderAutomacao}%`,
-            config: {
-              domotica: { label: 'Domotica', color: sectorTone },
-              industrial: { label: 'Industrial', color: sectorTone }
-            },
-            data: [
-              { name: 'domotica', value: faturamentoDomotica },
-              { name: 'industrial', value: faturamentoIndustrial }
-            ],
-            centerLabel: formatCurrency(totalAutomacao),
-            totalValue: totalAutomacao
-          },
-          {
-            title: 'Eletrica',
-            caption: `${liderEletrica} lidera com ${percLiderEletrica}%`,
-            config: {
-              projetoEletrico: { label: 'Projeto Eletrico', color: sectorTone },
-              solar: { label: 'Solar', color: sectorTone }
-            },
-            data: [
-              { name: 'projetoEletrico', value: faturamentoProjetoEletrico },
-              { name: 'solar', value: faturamentoSolar }
-            ],
-            centerLabel: formatCurrency(totalEletrica),
-            totalValue: totalEletrica
-          },
-          {
-            title: 'Geral',
-            caption: `${liderGeral} lidera com ${percLiderGeral}%`,
-            config: {
-              automacao: { label: 'Automacao', color: sectorTone },
-              eletrica: { label: 'Eletrica', color: sectorTone }
-            },
-            data: [
-              { name: 'automacao', value: totalAutomacao },
-              { name: 'eletrica', value: totalEletrica }
-            ],
-            centerLabel: formatCurrency(totalGeral),
-            totalValue: totalGeral
-          }
-        ];
-
-        setPieCharts(charts);
-      } catch (error) {
-        console.error('Erro ao buscar projetos:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchProjects();
-  }, [testDate]);
+    setPieCharts(charts);
+  }, [projects, isLoadingData, metaAnual, testDate]);
 
   const handleSetTestDate = () => {
     if (!testDateInput) {
@@ -413,7 +377,7 @@ export default function EstatisticasPage() {
     toast.success(`Data de teste definida para ${testDateInput}`);
   };
 
-  if (isLoading) {
+  if (isLoadingData) {
     return (
       <PageContainer scrollable={false}>
         <div className='flex flex-1 flex-col space-y-4'>

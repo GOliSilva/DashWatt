@@ -39,6 +39,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { PieGraph } from '@/features/overview/components/pie-graph';
 import { firebaseDb } from '@/lib/firebase/client';
+import { useFirebaseData } from '@/contexts/firebase-data-context';
 import {
   addDoc,
   collection,
@@ -54,6 +55,7 @@ import { FirebaseError } from 'firebase/app';
 import { format } from 'date-fns';
 import { CalendarIcon } from 'lucide-react';
 import { toast } from 'sonner';
+import type { Project as FirebaseProject, Member as FirebaseMember } from '@/contexts/firebase-data-context';
 
 type Project = {
   id: string;
@@ -82,51 +84,6 @@ type Member = {
   status: string;
   isLeadership?: boolean;
 };
-
-const initialMembers: Member[] = [
-  {
-    id: 'ana-costa',
-    name: 'Ana Costa',
-    role: 'Designer',
-    activity: 'Atualizou prototipos',
-    status: 'online'
-  },
-  {
-    id: 'carlos-souza',
-    name: 'Carlos Souza',
-    role: 'Frontend',
-    activity: 'Finalizou componentes',
-    status: 'away'
-  },
-  {
-    id: 'bruno-lima',
-    name: 'Bruno Lima',
-    role: 'Backend',
-    activity: 'Revisou endpoints',
-    status: 'online'
-  },
-  {
-    id: 'marina-silva',
-    name: 'Marina Silva',
-    role: 'QA',
-    activity: 'Executou testes',
-    status: 'offline'
-  },
-  {
-    id: 'paulo-melo',
-    name: 'Paulo Melo',
-    role: 'PM',
-    activity: 'Atualizou cronograma',
-    status: 'online'
-  },
-  {
-    id: 'renata-alves',
-    name: 'Renata Alves',
-    role: 'UX',
-    activity: 'Ajustou fluxos',
-    status: 'away'
-  }
-];
 
 const alerts = [
   {
@@ -220,20 +177,16 @@ type MemberFormState = {
 };
 
 export default function AcompanhamentoPage() {
+  const { projects: contextProjects, members: contextMembers, isLoading: isDataLoading } = useFirebaseData();
   const [areaFilter, setAreaFilter] = React.useState('Geral');
   const [statusFilter, setStatusFilter] = React.useState('Todos');
-  const [projectList, setProjectList] = React.useState<Project[]>([]);
-  const [isProjectsLoading, setIsProjectsLoading] = React.useState(true);
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
-  const [memberList, setMemberList] =
-    React.useState<Member[]>(initialMembers);
   const [leadershipMembers, setLeadershipMembers] = React.useState<Member[]>(
     []
   );
   const [isMemberDialogOpen, setIsMemberDialogOpen] = React.useState(false);
   const [isSavingMember, setIsSavingMember] = React.useState(false);
-  const [isMembersLoading, setIsMembersLoading] = React.useState(false);
   const [startDate, setStartDate] = React.useState<Date | undefined>(undefined);
   const [newProject, setNewProject] = React.useState<ProjectFormState>({
     name: '',
@@ -272,134 +225,54 @@ export default function AcompanhamentoPage() {
     }
   };
 
+  // Mapear projects do contexto para o formato da UI
+  const projectList = React.useMemo(() => {
+    return contextProjects.map((project) => {
+      const updatedLabel = project.updatedAt 
+        ? format(project.updatedAt.toDate?.() || project.updatedAt, 'dd/MM/yyyy')
+        : '---';
+      const startLabel = project.start 
+        ? format(project.start.toDate?.() || project.start, 'dd/MM/yyyy')
+        : '';
+
+      return {
+        id: project.id,
+        name: project.name ?? 'Projeto sem nome',
+        status: project.status ?? 'Planejamento',
+        updated: updatedLabel,
+        health: project.health ?? 'Ok',
+        area: project.area,
+        tipo: project.tipo,
+        client: project.client,
+        manager: project.manager,
+        managerId: project.managerId,
+        start: startLabel,
+        next: project.next,
+        value: project.value?.toString()
+      };
+    });
+  }, [contextProjects]);
+
+  // Mapear members do contexto
+  const memberList = React.useMemo(() => {
+    return contextMembers.map((member) => ({
+      id: member.id,
+      name: member.name ?? 'Sem nome',
+      email: member.email,
+      sector: member.sector,
+      cpf: member.cpf,
+      role: member.role ?? 'Sem cargo',
+      activity: member.activity ?? 'Sem atividade',
+      status: member.status ?? 'offline',
+      isLeadership: member.isLeadership
+    }));
+  }, [contextMembers]);
+
+  // Atualizar leadership members quando memberList mudar
   React.useEffect(() => {
-    if (!firebaseDb) {
-      return;
-    }
+    setLeadershipMembers(memberList.filter((member) => member.isLeadership));
+  }, [memberList]);
 
-    let isActive = true;
-    const loadMembers = async () => {
-      setIsMembersLoading(true);
-      try {
-        const baseCollection = collection(firebaseDb, 'members');
-        const allMembersQuery = query(baseCollection, orderBy('name', 'asc'));
-        const allSnapshot = await getDocs(allMembersQuery);
-        if (!isActive) {
-          return;
-        }
-
-        const mapMember = (docSnapshot: (typeof allSnapshot.docs)[number]) => {
-          const data = docSnapshot.data() as Partial<Member>;
-          return {
-            id: docSnapshot.id,
-            name: data.name ?? 'Sem nome',
-            email: data.email,
-            sector: data.sector,
-            cpf: data.cpf,
-            role: data.role ?? 'Sem cargo',
-            activity: data.activity ?? 'Sem atividade',
-            status: data.status ?? 'offline',
-            isLeadership: data.isLeadership
-          };
-        };
-
-        const allMembers = allSnapshot.docs.map(mapMember);
-        setMemberList(allMembers);
-        setLeadershipMembers(
-          allMembers.filter((member) => member.isLeadership)
-        );
-      } catch (error) {
-        console.error('Falha ao carregar membros:', error);
-        toast.error('Nao foi possivel carregar membros.');
-      } finally {
-        if (isActive) {
-          setIsMembersLoading(false);
-        }
-      }
-    };
-
-    loadMembers();
-
-    return () => {
-      isActive = false;
-    };
-  }, []);
-
-  React.useEffect(() => {
-    if (!firebaseDb) {
-      return;
-    }
-
-    let isActive = true;
-    const loadProjects = async () => {
-      setIsProjectsLoading(true);
-      try {
-        const snapshot = await getDocs(collection(firebaseDb, 'projects'));
-        if (!isActive) {
-          return;
-        }
-
-        const projectsFromDb = snapshot.docs.map((docSnapshot) => {
-          const data = docSnapshot.data() as Partial<{
-            name: string;
-            status: string;
-            updatedLabel: string;
-            updatedAt: Timestamp;
-            health: string;
-            area: string;
-            tipo: string;
-            client: string;
-            manager: string;
-            managerId: string;
-            start: Timestamp;
-            next: string;
-            value: string;
-          }>;
-          const updatedLabel =
-            typeof data.updatedLabel === 'string' && data.updatedLabel.trim()
-              ? data.updatedLabel
-              : data.updatedAt instanceof Timestamp
-                ? format(data.updatedAt.toDate(), 'dd/MM/yyyy')
-                : '---';
-          const startLabel =
-            data.start instanceof Timestamp
-              ? format(data.start.toDate(), 'dd/MM/yyyy')
-              : '';
-
-          return {
-            id: docSnapshot.id,
-            name: data.name ?? 'Projeto sem nome',
-            status: data.status ?? 'Planejamento',
-            updated: updatedLabel,
-            health: data.health ?? 'Ok',
-            area: data.area,
-            tipo: data.tipo,
-            client: data.client,
-            manager: data.manager,
-            managerId: data.managerId,
-            start: startLabel,
-            next: data.next,
-            value: data.value
-          };
-        });
-
-        setProjectList(projectsFromDb);
-      } catch (error) {
-        console.error('Falha ao carregar projetos:', error);
-        toast.error('Nao foi possivel carregar projetos.');
-      } finally {
-        if (isActive) {
-          setIsProjectsLoading(false);
-        }
-      }
-    };
-
-    loadProjects();
-
-    return () => {
-      isActive = false;
-    };
-  }, []);
 
   React.useEffect(() => {
     if (leadershipMembers.length === 0) {
@@ -492,24 +365,7 @@ export default function AcompanhamentoPage() {
         collection(firebaseDb, 'projects'),
         projectPayload
       );
-      setProjectList((current) => [
-        {
-          id: docRef.id,
-          name: projectPayload.name,
-          status: projectPayload.status,
-          updated: projectPayload.updatedLabel,
-          health: projectPayload.health,
-          area: projectPayload.area,
-          tipo: projectPayload.tipo,
-          client: projectPayload.client,
-          manager: projectPayload.manager,
-          managerId: projectPayload.managerId,
-          start: newProject.start.trim(),
-          next: projectPayload.next,
-          value: projectPayload.value
-        },
-        ...current
-      ]);
+      // O contexto atualiza automaticamente via onSnapshot
       toast.success('Projeto criado com sucesso.');
       setNewProject({
         name: '',
@@ -583,19 +439,7 @@ export default function AcompanhamentoPage() {
     setIsSavingMember(true);
     try {
       await setDoc(memberDoc, memberPayload);
-      setMemberList((current) => [
-        {
-          id: memberPayload.id,
-          name: memberPayload.name,
-          email: memberPayload.email,
-          sector: memberPayload.sector,
-          cpf: memberPayload.cpf,
-          role: memberPayload.role,
-          activity: memberPayload.activity,
-          status: memberPayload.status
-        },
-        ...current
-      ]);
+      // O contexto atualiza automaticamente via onSnapshot
       toast.success('Membro criado com sucesso.');
       setNewMember({
         name: '',
@@ -707,7 +551,7 @@ export default function AcompanhamentoPage() {
                               value={newProject.managerId}
                               disabled={
                                 isSaving ||
-                                isMembersLoading ||
+                                isDataLoading ||
                                 leadershipMembers.length === 0
                               }
                               onValueChange={(value) => {
@@ -919,7 +763,7 @@ export default function AcompanhamentoPage() {
             <CardContent>
               <ScrollArea className='h-64 pr-3'>
                 <div className='space-y-2'>
-                  {isProjectsLoading ? (
+                  {isDataLoading ? (
                     <div className='space-y-2'>
                       {Array.from({ length: 4 }).map((_, index) => (
                         <div key={`project-skeleton-${index}`} className='rounded-md border p-3'>
@@ -953,7 +797,7 @@ export default function AcompanhamentoPage() {
           </Card>
 
           <div className='h-105 [&>div]:h-full'>
-            {isProjectsLoading ? (
+            {isDataLoading ? (
               <Skeleton className='h-full w-full' />
             ) : (
               <PieGraph />
@@ -1101,7 +945,7 @@ export default function AcompanhamentoPage() {
             <CardContent>
               <ScrollArea className='h-64 pr-3'>
                 <div className='space-y-2'>
-                  {isMembersLoading ? (
+                  {isDataLoading ? (
                     <div className='space-y-2'>
                       {Array.from({ length: 4 }).map((_, index) => (
                         <div key={`member-skeleton-${index}`} className='rounded-md border p-3'>

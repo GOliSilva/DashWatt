@@ -2,6 +2,7 @@
 import React from 'react';
 import { ActiveThemeProvider } from '../active-theme';
 import { AuthProvider } from '@/features/auth/components/auth-provider';
+import { FirebaseDataProvider } from '@/contexts/firebase-data-context';
 
 export default function Providers({
   activeThemeValue,
@@ -12,7 +13,9 @@ export default function Providers({
 }) {
   return (
     <ActiveThemeProvider initialTheme={activeThemeValue}>
-      <AuthProvider>{children}</AuthProvider>
+      <AuthProvider>
+        <FirebaseDataProvider>{children}</FirebaseDataProvider>
+      </AuthProvider>
     </ActiveThemeProvider>
   );
 }
