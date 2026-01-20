@@ -7,7 +7,7 @@ import { PieGraph } from '@/features/overview/components/pie-graph';
 import { LineGraph } from '@/features/overview/components/line-graph';
 import { firebaseDb } from '@/lib/firebase/client';
 import { doc, setDoc, getDoc, onSnapshot } from 'firebase/firestore';
-import { useFirebaseData } from '@/contexts/firebase-data-context';
+import { useFirebaseData, type Project } from '@/contexts/firebase-data-context';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';

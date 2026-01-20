@@ -277,6 +277,11 @@ export default function MembroPage() {
 
     let isActive = true;
     const loadMember = async () => {
+      if (!firebaseDb) {
+        console.error('Firebase não inicializado');
+        return;
+      }
+
       try {
         const snapshot = await getDoc(doc(firebaseDb, 'members', memberId));
         if (!snapshot.exists() || !isActive) {
@@ -322,6 +327,12 @@ export default function MembroPage() {
 
     let isActive = true;
     const loadMembers = async () => {
+      if (!firebaseDb) {
+        console.error('Firebase não inicializado');
+        setIsMembersLoading(false);
+        return;
+      }
+
       setIsMembersLoading(true);
       try {
         const snapshot = await getDocs(collection(firebaseDb, 'members'));
@@ -363,6 +374,11 @@ export default function MembroPage() {
 
     let isActive = true;
     const loadTasks = async () => {
+      if (!firebaseDb) {
+        console.error('Firebase não inicializado');
+        return;
+      }
+
       try {
         const snapshot = await getDocs(collection(firebaseDb, 'projects'));
         if (!isActive) {

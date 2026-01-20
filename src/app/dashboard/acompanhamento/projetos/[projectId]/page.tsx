@@ -206,6 +206,12 @@ export default function ProjetoPage() {
 
     let isActive = true;
     const loadMembers = async () => {
+      if (!firebaseDb) {
+        console.error('Firebase não inicializado');
+        setIsMembersLoading(false);
+        return;
+      }
+
       setIsMembersLoading(true);
       try {
         const snapshot = await getDocs(
@@ -249,6 +255,11 @@ export default function ProjetoPage() {
 
     let isActive = true;
     const loadActivities = async () => {
+      if (!firebaseDb) {
+        console.error('Firebase não inicializado');
+        return;
+      }
+
       try {
         const snapshot = await getDoc(doc(firebaseDb, 'projects', projectId));
         if (!snapshot.exists() || !isActive) {
