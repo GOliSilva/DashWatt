@@ -77,8 +77,17 @@ type Activity = {
   status: string;
   priority: keyof typeof priorities;
   description: string;
+  updates?: ActivityUpdate[];
+
 };
 
+type ActivityUpdate = {
+  id: string;
+  author: string;
+  authorId?: string;
+  note: string;
+  time: string;
+};
 type ProjectInfo = {
   id: string;
   name: string;
@@ -117,6 +126,30 @@ const toInputDate = (value: string) => {
   }
   const [day, month, year] = parts;
   return `${year}-${month}-${day}`;
+};
+
+const formatProjectValue = (value?: string) => {
+  if (!value) {
+    return 'R$ --';
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return 'R$ --';
+  }
+  const normalized = trimmed.replace(/[^0-9.,]/g, '');
+  if (!normalized) {
+    return 'R$ --';
+  }
+  const numericValue = normalized.includes(',')
+    ? Number.parseFloat(normalized.replace(/\./g, '').replace(',', '.'))
+    : Number.parseFloat(normalized);
+  if (Number.isNaN(numericValue)) {
+    return 'R$ --';
+  }
+  return 'R$ ' + new Intl.NumberFormat('pt-BR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(numericValue);
 };
 
 export default function ProjetoPage() {
@@ -291,7 +324,7 @@ export default function ProjetoPage() {
   const selectedActivity =
     activityList.find((activity) => activity.id === selectedId) ??
     activityList[0];
-  const activityUpdates = [];
+  const activityUpdates = selectedActivity?.updates ?? [];
   const filteredMembers = memberOptions.filter((member) =>
     member.name.toLowerCase().includes(newActivity.owner.toLowerCase().trim())
   );
@@ -348,7 +381,8 @@ export default function ProjetoPage() {
       ownerId: newActivity.ownerId || undefined,
       status: newActivity.status,
       priority: newActivity.priority as Activity['priority'],
-      description: newActivity.description.trim()
+      description: newActivity.description.trim(),
+      updates: []
     };
 
     setIsSavingActivity(true);
@@ -452,9 +486,14 @@ export default function ProjetoPage() {
       pageDescription={
         projectInfo.manager ? `Gerente: ${projectInfo.manager}` : ''
       }
+      pageHeaderAction={
+        <span className='text-foreground text-3xl font-semibold'>
+          {formatProjectValue(projectInfo.value)}
+        </span>
+      }
     >
       <div className='flex flex-1 flex-col space-y-4'>
-        <div className='*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs lg:grid-cols-2'>
+        <div className='*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 *:data-[slot=card]:bg-linear-to-t *:data-[slot=card]:shadow-xs lg:grid-cols-2'>
           <Card className='h-full'>
             <CardHeader>
               <CardTitle>Atividades</CardTitle>
@@ -733,7 +772,7 @@ export default function ProjetoPage() {
                         Proximo: {projectInfo.next || '--'}
                       </DropdownMenuItem>
                       <DropdownMenuItem>
-                        Valor: {projectInfo.value || '--'}
+                        Valor: {formatProjectValue(projectInfo.value)}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -775,27 +814,34 @@ export default function ProjetoPage() {
               </div>
               <div className='rounded-md border p-3'>
                 <div className='text-muted-foreground text-xs'>Atualizacoes</div>
-                <div className='mt-2 space-y-2'>
-                  {activityUpdates.length === 0 ? (
-                    <div className='text-muted-foreground text-xs'>
-                      Sem atualizacoes.
-                    </div>
-                  ) : (
-                    activityUpdates.map((update) => (
-                      <div key={update.id} className='rounded-md border p-2'>
-                        <div className='text-xs font-medium'>
-                          {update.author}
-                        </div>
-                        <div className='text-muted-foreground text-xs'>
-                          {update.note}
-                        </div>
-                        <div className='text-muted-foreground text-[11px]'>
-                          {update.time}
-                        </div>
+                <ScrollArea className='mt-2 h-40 pr-2'>
+                  <div className='space-y-2'>
+                    {activityUpdates.length === 0 ? (
+                      <div className='text-muted-foreground text-xs'>
+                        Sem atualizacoes.
                       </div>
-                    ))
-                  )}
-                </div>
+                    ) : (
+                      activityUpdates.map((update) => (
+                          <div
+                            key={update.id}
+                            className='space-y-2 rounded-md border p-3'
+                          >
+                            <div className='flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between'>
+                              <div className='text-sm font-medium'>
+                                {update.author}
+                              </div>
+                              <div className='text-muted-foreground text-xs'>
+                                {update.time}
+                              </div>
+                            </div>
+                            <div className='text-muted-foreground text-sm'>
+                              {update.note}
+                            </div>
+                          </div>
+                        ))
+                    )}
+                  </div>
+                </ScrollArea>
               </div>
             </CardContent>
           </Card>

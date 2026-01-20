@@ -36,6 +36,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 import { PieGraph } from '@/features/overview/components/pie-graph';
 import { firebaseDb } from '@/lib/firebase/client';
 import {
@@ -218,6 +219,7 @@ export default function AcompanhamentoPage() {
   const [scopeFilter, setScopeFilter] = React.useState('Geral');
   const [statusFilter, setStatusFilter] = React.useState('Todos');
   const [projectList, setProjectList] = React.useState<Project[]>([]);
+  const [isProjectsLoading, setIsProjectsLoading] = React.useState(true);
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
   const [memberList, setMemberList] =
@@ -325,6 +327,7 @@ export default function AcompanhamentoPage() {
 
     let isActive = true;
     const loadProjects = async () => {
+      setIsProjectsLoading(true);
       try {
         const snapshot = await getDocs(collection(firebaseDb, 'projects'));
         if (!isActive) {
@@ -377,6 +380,10 @@ export default function AcompanhamentoPage() {
       } catch (error) {
         console.error('Falha ao carregar projetos:', error);
         toast.error('Nao foi possivel carregar projetos.');
+      } finally {
+        if (isActive) {
+          setIsProjectsLoading(false);
+        }
       }
     };
 
@@ -590,7 +597,7 @@ export default function AcompanhamentoPage() {
       pageDescription='Visao geral das frentes em andamento'
       pageHeaderAction={
         <Select value={scopeFilter} onValueChange={setScopeFilter}>
-          <SelectTrigger className='h-8 w-[160px]' aria-label='Filtrar area'>
+          <SelectTrigger className='h-8 w-40' aria-label='Filtrar area'>
             <SelectValue placeholder='Area' />
           </SelectTrigger>
           <SelectContent align='end'>
@@ -604,8 +611,8 @@ export default function AcompanhamentoPage() {
       }
     >
       <div className='flex flex-1 flex-col space-y-4'>
-        <div className='*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs lg:grid-cols-2'>
-          <Card className='h-full'>
+        <div className='*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 *:data-[slot=card]:bg-linear-to-t *:data-[slot=card]:shadow-xs lg:grid-cols-2'>
+          <Card className='h-105'>
             <CardHeader>
               <CardTitle>Projetos em acompanhamento</CardTitle>
               <CardDescription>Lista priorizada com status</CardDescription>
@@ -613,7 +620,7 @@ export default function AcompanhamentoPage() {
                 <div className='flex items-center gap-2'>
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
                     <SelectTrigger
-                      className='h-8 w-[160px]'
+                      className='h-8 w-40'
                       aria-label='Filtrar por status'
                     >
                       <SelectValue placeholder='Status' />
@@ -870,33 +877,48 @@ export default function AcompanhamentoPage() {
             <CardContent>
               <ScrollArea className='h-64 pr-3'>
                 <div className='space-y-2'>
-                  {filteredProjects.map((project) => (
-                    <Link
-                      key={project.id}
-                      href={`/dashboard/acompanhamento/projetos/${project.id}`}
-                      className='hover:bg-accent focus-visible:ring-ring/50 flex w-full items-start justify-between gap-3 rounded-md border p-3 text-left transition-colors focus-visible:ring-[3px] focus-visible:outline-none'
-                    >
-                      <div className='flex flex-col'>
-                        <span className='text-sm font-medium'>
-                          {project.name}
-                        </span>
-                        <span className='text-muted-foreground text-xs'>
-                          {project.status} - Atualizado {project.updated}
-                        </span>
-                      </div>
-                      <Badge variant='outline'>{project.health}</Badge>
-                    </Link>
-                  ))}
+                  {isProjectsLoading ? (
+                    <div className='space-y-2'>
+                      {Array.from({ length: 4 }).map((_, index) => (
+                        <div key={`project-skeleton-${index}`} className='rounded-md border p-3'>
+                          <Skeleton className='h-4 w-2/3' />
+                          <Skeleton className='mt-2 h-3 w-1/2' />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    filteredProjects.map((project) => (
+                      <Link
+                        key={project.id}
+                        href={`/dashboard/acompanhamento/projetos/${project.id}`}
+                        className='hover:bg-accent focus-visible:ring-ring/50 flex w-full items-start justify-between gap-3 rounded-md border p-3 text-left transition-colors focus-visible:ring-[3px] focus-visible:outline-none'
+                      >
+                        <div className='flex flex-col'>
+                          <span className='text-sm font-medium'>
+                            {project.name}
+                          </span>
+                          <span className='text-muted-foreground text-xs'>
+                            {project.status} - Atualizado {project.updated}
+                          </span>
+                        </div>
+                        <Badge variant='outline'>{project.health}</Badge>
+                      </Link>
+                    ))
+                  )}
                 </div>
               </ScrollArea>
             </CardContent>
           </Card>
 
-          <div className='h-full [&>div]:h-full'>
-            <PieGraph />
+          <div className='h-105 [&>div]:h-full'>
+            {isProjectsLoading ? (
+              <Skeleton className='h-full w-full' />
+            ) : (
+              <PieGraph />
+            )}
           </div>
 
-          <Card className='h-full'>
+          <Card className='h-105'>
             <CardHeader>
               <CardTitle>Membros da equipe</CardTitle>
               <CardDescription>Ultima atividade registrada</CardDescription>
@@ -1037,25 +1059,36 @@ export default function AcompanhamentoPage() {
             <CardContent>
               <ScrollArea className='h-64 pr-3'>
                 <div className='space-y-2'>
-                  {memberList.map((member) => (
-                    <Link
-                      key={member.id}
-                      href={`/dashboard/acompanhamento/membros/${member.id}`}
-                      className='hover:bg-accent focus-visible:ring-ring/50 flex w-full items-start justify-between gap-3 rounded-md border p-3 text-left transition-colors focus-visible:ring-[3px] focus-visible:outline-none'
-                    >
-                      <div className='flex flex-col'>
-                        <span className='text-sm font-medium'>
-                          {member.name}
-                        </span>
-                        <span className='text-muted-foreground text-xs'>
-                          {member.role} - {member.activity}
-                        </span>
-                      </div>
-                      <Badge className={memberStatusStyles[member.status]}>
-                        {member.status}
-                      </Badge>
-                    </Link>
-                  ))}
+                  {isMembersLoading ? (
+                    <div className='space-y-2'>
+                      {Array.from({ length: 4 }).map((_, index) => (
+                        <div key={`member-skeleton-${index}`} className='rounded-md border p-3'>
+                          <Skeleton className='h-4 w-1/2' />
+                          <Skeleton className='mt-2 h-3 w-2/3' />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    memberList.map((member) => (
+                      <Link
+                        key={member.id}
+                        href={`/dashboard/acompanhamento/membros/${member.id}`}
+                        className='hover:bg-accent focus-visible:ring-ring/50 flex w-full items-start justify-between gap-3 rounded-md border p-3 text-left transition-colors focus-visible:ring-[3px] focus-visible:outline-none'
+                      >
+                        <div className='flex flex-col'>
+                          <span className='text-sm font-medium'>
+                            {member.name}
+                          </span>
+                          <span className='text-muted-foreground text-xs'>
+                            {member.role} - {member.activity}
+                          </span>
+                        </div>
+                        <Badge className={memberStatusStyles[member.status]}>
+                          {member.status}
+                        </Badge>
+                      </Link>
+                    ))
+                  )}
                 </div>
               </ScrollArea>
             </CardContent>

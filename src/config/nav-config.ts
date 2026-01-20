@@ -83,8 +83,8 @@ export const navItems: NavItem[] = [
     items: []
   },
   {
-    title: 'Membro',
-    url: '/dashboard/membro',
+    title: 'Individual',
+    url: '/dashboard/individual',
     icon: 'user',
     isActive: false,
     items: []

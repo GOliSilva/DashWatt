@@ -13,6 +13,7 @@ Keep it updated when structure or conventions change.
 - `src/features`: feature-level components (charts, widgets).
 - `src/config`: navigation config and app-level settings.
 - `src/hooks`: custom hooks (navigation filtering, etc).
+- `examples`: JSON payloads for Firebase seed data.
 
 ## Navigation
 - Sidebar and Cmd+K use the same config in `src/config/nav-config.ts`.
@@ -24,6 +25,14 @@ Keep it updated when structure or conventions change.
 - Firebase auth lives in `src/lib/firebase/client.ts` with `AuthProvider` and
   `AuthGuard` under `src/features/auth/components`.
 - Sign-in/sign-up views use `UserAuthForm` with email/password + GitHub/Google popup.
+
+## Firebase data
+- Acompanhamento overview (`src/app/dashboard/acompanhamento/page.tsx`) reads
+  `projects` and `members` from Firestore.
+- New projects are saved to `projects` with `start` as Firestore `Timestamp`.
+- New members are saved to `members` with `isLeadership` and role/sector metadata.
+- Project detail (`src/app/dashboard/acompanhamento/projetos/[projectId]/page.tsx`)
+  reads `Activities` from Firestore and writes updates back to the same field.
 
 ## Acompanhamento (custom)
 - List page: `src/app/dashboard/acompanhamento/page.tsx`.

@@ -5,11 +5,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
-  Popover,
-  PopoverAnchor,
-  PopoverContent
-} from '@/components/ui/popover';
-import {
   Card,
   CardContent,
   CardDescription,
@@ -18,6 +13,7 @@ import {
 } from '@/components/ui/card';
 import { Calendar } from '@/components/ui/calendar';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { firebaseDb } from '@/lib/firebase/client';
 import {
@@ -56,6 +52,7 @@ type MemberTask = {
   activityId?: string;
   projectId?: string;
   projectName?: string;
+  source?: 'project' | 'agenda';
   title: string;
   due: string;
   status: string;
@@ -63,6 +60,15 @@ type MemberTask = {
   owner?: string;
   ownerId?: string;
   description?: string;
+  updates?: ActivityUpdate[];
+};
+
+type ActivityUpdate = {
+  id: string;
+  author: string;
+  authorId?: string;
+  note: string;
+  time: string;
 };
 
 type MemberAlert = {
@@ -189,6 +195,8 @@ export default function MembroPage() {
   const memberIdParam = searchParams.get('memberId') ?? searchParams.get('id');
   const memberNameParam = searchParams.get('name');
   const [memberId, setMemberId] = React.useState('');
+  const [isMemberLoading, setIsMemberLoading] = React.useState(true);
+  const [isProjectTasksLoading, setIsProjectTasksLoading] = React.useState(true);
   const [selectedDay, setSelectedDay] = React.useState<Date | undefined>(
     new Date()
   );
@@ -199,32 +207,33 @@ export default function MembroPage() {
     cpf: '',
     role: ''
   });
-  const [memberTasks, setMemberTasks] = React.useState<MemberTask[]>([]);
+  const [projectTasks, setProjectTasks] = React.useState<MemberTask[]>([]);
+  const [agendaTasks, setAgendaTasks] = React.useState<MemberTask[]>([]);
   const [memberAlerts, setMemberAlerts] = React.useState<MemberAlert[]>(alerts);
   const [activeTask, setActiveTask] = React.useState<MemberTask | null>(null);
   const [isTaskModalOpen, setIsTaskModalOpen] = React.useState(false);
-  const [memberOptions, setMemberOptions] = React.useState<MemberOption[]>([]);
-  const [isMembersLoading, setIsMembersLoading] = React.useState(false);
-  const [isEditOwnerOpen, setIsEditOwnerOpen] = React.useState(false);
-  const editOwnerInputRef = React.useRef<HTMLInputElement | null>(null);
-  const closeEditOwnerTimeout = React.useRef<NodeJS.Timeout | null>(null);
   const [isSavingEdit, setIsSavingEdit] = React.useState(false);
-  const [editTask, setEditTask] = React.useState({
-    name: '',
+  const [editStatus, setEditStatus] = React.useState(statusOptions[1]);
+  const [updateNote, setUpdateNote] = React.useState('');
+  const [isSavingAgenda, setIsSavingAgenda] = React.useState(false);
+  const [agendaForm, setAgendaForm] = React.useState({
+    date: '',
+    title: '',
     description: '',
-    dueDate: '',
-    owner: '',
-    ownerId: '',
-    status: statusOptions[1],
-    priority: priorityOptions[1]
+    priority: priorityOptions[1],
+    status: statusOptions[0]
   });
+  const allTasks = React.useMemo(
+    () => [...agendaTasks, ...projectTasks],
+    [agendaTasks, projectTasks]
+  );
   const selectedDayLabel = selectedDay ? format(selectedDay, 'dd/MM/yyyy') : '';
   const tasksForDay = selectedDayLabel
-    ? memberTasks.filter((task) => task.due === selectedDayLabel)
+    ? allTasks.filter((task) => task.due === selectedDayLabel)
     : [];
   const priorityByDate = React.useMemo(() => {
     const map = new Map<string, string>();
-    memberTasks.forEach((task) => {
+    allTasks.forEach((task) => {
       const parsed = parseDueDate(task.due);
       if (!parsed) {
         return;
@@ -236,7 +245,7 @@ export default function MembroPage() {
       }
     });
     return map;
-  }, [memberTasks]);
+  }, [allTasks]);
   const calendarIndicators = React.useMemo(() => {
     const high: Date[] = [];
     const medium: Date[] = [];
@@ -261,26 +270,20 @@ export default function MembroPage() {
     };
   }, [priorityByDate]);
 
-  const closeEditOwnerPopover = React.useCallback(() => {
-    if (closeEditOwnerTimeout.current) {
-      clearTimeout(closeEditOwnerTimeout.current);
-    }
-    closeEditOwnerTimeout.current = setTimeout(() => {
-      setIsEditOwnerOpen(false);
-    }, 120);
-  }, []);
-
   React.useEffect(() => {
     if (!firebaseDb) {
       return;
     }
+    const db = firebaseDb;
 
     let isActive = true;
+    setIsMemberLoading(true);
     const applyMemberSnapshot = (
       docId: string,
       data: Partial<MemberInfo> & {
         tasks?: MemberTask[];
         alerts?: MemberAlert[];
+        agendaTasks?: MemberTask[];
       }
     ) => {
       setMemberId(docId);
@@ -291,8 +294,15 @@ export default function MembroPage() {
         cpf: data.cpf ?? '',
         role: data.role ?? ''
       });
-      if (Array.isArray(data.tasks)) {
-        setMemberTasks(data.tasks);
+      if (Array.isArray(data.agendaTasks)) {
+        setAgendaTasks(
+          data.agendaTasks.map((task) => ({
+            ...task,
+            source: 'agenda'
+          }))
+        );
+      } else {
+        setAgendaTasks([]);
       }
       if (Array.isArray(data.alerts)) {
         setMemberAlerts(data.alerts);
@@ -302,7 +312,7 @@ export default function MembroPage() {
     };
 
     const loadMemberById = async (docId: string) => {
-      const snapshot = await getDoc(doc(firebaseDb, 'members', docId));
+      const snapshot = await getDoc(doc(db, 'members', docId));
       if (!snapshot.exists() || !isActive) {
         return false;
       }
@@ -318,7 +328,7 @@ export default function MembroPage() {
         }
         if (memberNameParam) {
           const nameQuery = query(
-            collection(firebaseDb, 'members'),
+            collection(db, 'members'),
             where('name', '==', memberNameParam)
           );
           const snapshot = await getDocs(nameQuery);
@@ -333,7 +343,7 @@ export default function MembroPage() {
         }
 
         const fallbackSnapshot = await getDocs(
-          query(collection(firebaseDb, 'members'), orderBy('name', 'asc'))
+          query(collection(db, 'members'), orderBy('name', 'asc'))
         );
         const first = fallbackSnapshot.docs[0];
         if (first && isActive) {
@@ -350,13 +360,18 @@ export default function MembroPage() {
             cpf: '',
             role: ''
           });
-          setMemberTasks([]);
+          setProjectTasks([]);
+          setAgendaTasks([]);
           setMemberAlerts(alerts);
           toast.error('Nenhum membro encontrado.');
         }
       } catch (error) {
         console.error('Falha ao carregar membro:', error);
         toast.error('Nao foi possivel carregar o membro.');
+      } finally {
+        if (isActive) {
+          setIsMemberLoading(false);
+        }
       }
     };
 
@@ -368,57 +383,16 @@ export default function MembroPage() {
   }, [memberIdParam, memberNameParam]);
 
   React.useEffect(() => {
-    if (!firebaseDb) {
-      return;
-    }
-
-    let isActive = true;
-    const loadMembers = async () => {
-      setIsMembersLoading(true);
-      try {
-        const snapshot = await getDocs(
-          query(collection(firebaseDb, 'members'), orderBy('name', 'asc'))
-        );
-        if (!isActive) {
-          return;
-        }
-
-        setMemberOptions(
-          snapshot.docs.map((docSnapshot) => {
-            const data = docSnapshot.data() as Partial<MemberOption>;
-            return {
-              id: docSnapshot.id,
-              name: data.name ?? 'Sem nome',
-              role: data.role
-            };
-          })
-        );
-      } catch (error) {
-        console.error('Falha ao carregar membros:', error);
-        toast.error('Nao foi possivel carregar membros.');
-      } finally {
-        if (isActive) {
-          setIsMembersLoading(false);
-        }
-      }
-    };
-
-    loadMembers();
-
-    return () => {
-      isActive = false;
-    };
-  }, []);
-
-  React.useEffect(() => {
     if (!firebaseDb || !memberId) {
       return;
     }
+    const db = firebaseDb;
 
     let isActive = true;
+    setIsProjectTasksLoading(true);
     const loadTasks = async () => {
       try {
-        const snapshot = await getDocs(collection(firebaseDb, 'projects'));
+        const snapshot = await getDocs(collection(db, 'projects'));
         if (!isActive) {
           return;
         }
@@ -436,6 +410,7 @@ export default function MembroPage() {
               ownerId?: string;
               owner?: string;
               description?: string;
+              updates?: ActivityUpdate[];
             }>;
           };
           if (!Array.isArray(data.Activities)) {
@@ -452,21 +427,27 @@ export default function MembroPage() {
               activityId: activity.id,
               projectId: docSnapshot.id,
               projectName: data.name ?? 'Projeto',
+              source: 'project',
               title: activity.name ?? 'Tarefa',
               due: activity.dueAt ?? '',
               status: activity.status ?? 'Planejado',
               priority: activity.priority ?? 'Media',
               owner: activity.owner,
               ownerId: activity.ownerId,
-              description: activity.description
+              description: activity.description,
+              updates: Array.isArray(activity.updates) ? activity.updates : []
             });
           });
         });
 
-        setMemberTasks(tasksFromDb);
+        setProjectTasks(tasksFromDb);
       } catch (error) {
         console.error('Falha ao carregar tarefas:', error);
         toast.error('Nao foi possivel carregar tarefas.');
+      } finally {
+        if (isActive) {
+          setIsProjectTasksLoading(false);
+        }
       }
     };
 
@@ -479,43 +460,110 @@ export default function MembroPage() {
 
   const handleTaskClick = (task: MemberTask) => {
     setActiveTask(task);
-    setEditTask({
-      name: task.title,
-      description: task.description ?? '',
-      dueDate: toInputDate(task.due),
-      owner: task.owner ?? '',
-      ownerId: task.ownerId ?? '',
-      status: task.status ?? statusOptions[1],
-      priority: task.priority ?? priorityOptions[1]
-    });
+    setEditStatus(task.status ?? statusOptions[1]);
+    setUpdateNote('');
     setIsTaskModalOpen(true);
   };
 
-  const filteredEditMembers = memberOptions.filter((member) =>
-    member.name.toLowerCase().includes(editTask.owner.toLowerCase().trim())
-  );
-
   const handleUpdateTask = async () => {
     if (!activeTask?.projectId || !activeTask.activityId) {
-      toast.error('Atividade nao encontrada.');
-      return;
+      if (activeTask?.source !== 'agenda') {
+        toast.error('Atividade nao encontrada.');
+        return;
+      }
     }
     if (!firebaseDb) {
       toast.error('Firebase nao configurado.');
       return;
     }
-    if (!editTask.name.trim()) {
-      toast.error('Informe o nome da atividade.');
-      return;
-    }
-    if (!editTask.owner.trim()) {
-      toast.error('Informe o responsavel.');
-      return;
-    }
-
+    const db = firebaseDb;
     setIsSavingEdit(true);
     try {
-      const projectRef = doc(firebaseDb, 'projects', activeTask.projectId);
+      if (activeTask?.source === 'agenda' || !activeTask.projectId) {
+        if (!memberId) {
+          toast.error('Membro nao encontrado.');
+          return;
+        }
+        const memberRef = doc(db, 'members', memberId);
+        const memberSnapshot = await getDoc(memberRef);
+        if (!memberSnapshot.exists()) {
+          toast.error('Membro nao encontrado.');
+          return;
+        }
+
+        const memberData = memberSnapshot.data() as {
+          agendaTasks?: MemberTask[];
+        };
+        const noteValue = updateNote.trim();
+        const updateId =
+          typeof crypto !== 'undefined' && crypto.randomUUID
+            ? crypto.randomUUID()
+            : `update-${Date.now()}`;
+        const updateEntry: ActivityUpdate | null = noteValue
+          ? {
+              id: updateId,
+              author: memberInfo.name || 'Membro',
+              authorId: memberId || undefined,
+              note: noteValue,
+              time: format(new Date(), 'dd/MM/yyyy HH:mm')
+            }
+          : null;
+
+        const existingAgenda = Array.isArray(memberData.agendaTasks)
+          ? memberData.agendaTasks
+          : [];
+        const nextAgenda = existingAgenda.map((task) => {
+          if (task.id !== activeTask.id) {
+            return task;
+          }
+          const existingUpdates = Array.isArray(task.updates)
+            ? task.updates
+            : [];
+          return {
+            ...task,
+            source: 'agenda',
+            status: editStatus,
+            updates: updateEntry
+              ? [updateEntry, ...existingUpdates]
+              : existingUpdates
+          };
+        });
+
+        await updateDoc(memberRef, {
+          agendaTasks: nextAgenda,
+          updatedAt: serverTimestamp()
+        });
+
+        setAgendaTasks((current) =>
+          current.map((task) =>
+            task.id === activeTask.id
+              ? {
+                  ...task,
+                  status: editStatus,
+                  updates: updateEntry
+                    ? [updateEntry, ...(task.updates ?? [])]
+                    : task.updates
+                }
+              : task
+          )
+        );
+        setActiveTask((current) =>
+          current
+            ? {
+                ...current,
+                status: editStatus,
+                updates: updateEntry
+                  ? [updateEntry, ...(current.updates ?? [])]
+                  : current.updates
+              }
+            : current
+        );
+        setUpdateNote('');
+        toast.success('Atualizacao registrada.');
+        return;
+      }
+
+      const projectRef = doc(db, 'projects', activeTask.projectId);
       const snapshot = await getDoc(projectRef);
       if (!snapshot.exists()) {
         toast.error('Projeto nao encontrado.');
@@ -523,20 +571,35 @@ export default function MembroPage() {
       }
 
       const data = snapshot.data() as { Activities?: MemberTask[] };
+      const noteValue = updateNote.trim();
+      const updateId =
+        typeof crypto !== 'undefined' && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `update-${Date.now()}`;
+      const updateEntry: ActivityUpdate | null = noteValue
+        ? {
+            id: updateId,
+            author: memberInfo.name || 'Membro',
+            authorId: memberId || undefined,
+            note: noteValue,
+            time: format(new Date(), 'dd/MM/yyyy HH:mm')
+          }
+        : null;
+
       const nextActivities = Array.isArray(data.Activities)
         ? data.Activities.map((activity) => {
             if (activity.id !== activeTask.activityId) {
               return activity;
             }
+            const existingUpdates = Array.isArray(activity.updates)
+              ? activity.updates
+              : [];
             return {
               ...activity,
-              name: editTask.name.trim(),
-              description: editTask.description.trim(),
-              dueAt: formatDateLabel(editTask.dueDate),
-              owner: editTask.owner.trim(),
-              ownerId: editTask.ownerId || undefined,
-              status: editTask.status,
-              priority: editTask.priority
+              status: editStatus,
+              updates: updateEntry
+                ? [updateEntry, ...existingUpdates]
+                : existingUpdates
             };
           })
         : [];
@@ -546,18 +609,15 @@ export default function MembroPage() {
         updatedAt: serverTimestamp()
       });
 
-      setMemberTasks((current) =>
+      setProjectTasks((current) =>
         current.map((task) =>
           task.id === activeTask.id
             ? {
                 ...task,
-                title: editTask.name.trim(),
-                description: editTask.description.trim(),
-                due: formatDateLabel(editTask.dueDate),
-                owner: editTask.owner.trim(),
-                ownerId: editTask.ownerId || undefined,
-                status: editTask.status,
-                priority: editTask.priority
+                status: editStatus,
+                updates: updateEntry
+                  ? [updateEntry, ...(task.updates ?? [])]
+                  : task.updates
               }
             : task
         )
@@ -566,16 +626,14 @@ export default function MembroPage() {
         current
           ? {
               ...current,
-              title: editTask.name.trim(),
-              description: editTask.description.trim(),
-              due: formatDateLabel(editTask.dueDate),
-              owner: editTask.owner.trim(),
-              ownerId: editTask.ownerId || undefined,
-              status: editTask.status,
-              priority: editTask.priority
+              status: editStatus,
+              updates: updateEntry
+                ? [updateEntry, ...(current.updates ?? [])]
+                : current.updates
             }
           : current
       );
+      setUpdateNote('');
       toast.success('Atividade atualizada.');
     } catch (error) {
       console.error('Falha ao atualizar atividade:', error);
@@ -585,14 +643,85 @@ export default function MembroPage() {
     }
   };
 
+  const handleAddAgendaTask = async () => {
+    if (!agendaForm.title.trim()) {
+      toast.error('Informe o nome da atividade.');
+      return;
+    }
+    if (!agendaForm.date) {
+      toast.error('Informe a data.');
+      return;
+    }
+    if (!firebaseDb) {
+      toast.error('Firebase nao configurado.');
+      return;
+    }
+    if (!memberId) {
+      toast.error('Membro nao encontrado.');
+      return;
+    }
+
+    const db = firebaseDb;
+    const memberRef = doc(db, 'members', memberId);
+    setIsSavingAgenda(true);
+    try {
+      const snapshot = await getDoc(memberRef);
+      if (!snapshot.exists()) {
+        toast.error('Membro nao encontrado.');
+        return;
+      }
+
+      const taskId =
+        typeof crypto !== 'undefined' && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `agenda-${Date.now()}`;
+      const agendaTask: MemberTask = {
+        id: taskId,
+        source: 'agenda',
+        title: agendaForm.title.trim(),
+        due: formatDateLabel(agendaForm.date),
+        status: agendaForm.status,
+        priority: agendaForm.priority,
+        description: agendaForm.description.trim(),
+        updates: []
+      };
+
+      const data = snapshot.data() as { agendaTasks?: MemberTask[] };
+      const existingAgenda = Array.isArray(data.agendaTasks)
+        ? data.agendaTasks
+        : [];
+      const nextAgenda = [agendaTask, ...existingAgenda];
+
+      await updateDoc(memberRef, {
+        agendaTasks: nextAgenda,
+        updatedAt: serverTimestamp()
+      });
+
+      setAgendaTasks((current) => [agendaTask, ...current]);
+      setAgendaForm({
+        date: '',
+        title: '',
+        description: '',
+        priority: priorityOptions[1],
+        status: statusOptions[0]
+      });
+      toast.success('Agenda adicionada.');
+    } catch (error) {
+      console.error('Falha ao salvar agenda:', error);
+      toast.error('Nao foi possivel salvar a agenda.');
+    } finally {
+      setIsSavingAgenda(false);
+    }
+  };
+
   return (
     <PageContainer
-      pageTitle='Membro'
+      pageTitle={memberInfo.name || 'Individual'}
       pageDescription='Tarefas, calendario e alertas'
     >
       <div className='flex flex-1 flex-col space-y-4'>
         <div className='*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 *:data-[slot=card]:bg-linear-to-t *:data-[slot=card]:shadow-xs lg:grid-cols-2'>
-          <Card className='h-full'>
+          <Card className='h-105'>
             <CardHeader>
               <CardTitle>Lista de tarefas</CardTitle>
               <CardDescription>Atividades da semana</CardDescription>
@@ -600,12 +729,21 @@ export default function MembroPage() {
             <CardContent>
               <ScrollArea className='h-56 pr-3'>
                 <div className='space-y-2'>
-                  {memberTasks.length === 0 ? (
+                  {isProjectTasksLoading ? (
+                    <div className='space-y-2'>
+                      {Array.from({ length: 4 }).map((_, index) => (
+                        <div key={`task-skeleton-${index}`} className='rounded-md border p-3'>
+                          <Skeleton className='h-4 w-2/3' />
+                          <Skeleton className='mt-2 h-3 w-1/3' />
+                        </div>
+                      ))}
+                    </div>
+                  ) : allTasks.length === 0 ? (
                     <div className='text-muted-foreground text-sm'>
                       Nenhuma tarefa encontrada.
                     </div>
                   ) : (
-                    memberTasks.map((task) => (
+                    allTasks.map((task) => (
                       <button
                         key={task.id}
                         type='button'
@@ -638,27 +776,31 @@ export default function MembroPage() {
             </CardContent>
           </Card>
 
-          <Card className='h-full'>
+          <Card className='h-105'>
             <CardHeader>
               <CardTitle>Calendario</CardTitle>
               <CardDescription>Dias clicaveis para agenda</CardDescription>
             </CardHeader>
             <CardContent>
               <div className='grid gap-4 md:grid-cols-[260px_minmax(0,1fr)]'>
-                <Calendar
-                  mode='single'
-                  selected={selectedDay}
-                  onSelect={setSelectedDay}
-                  modifiers={calendarIndicators}
-                  modifiersClassNames={{
-                    highPriority:
-                      "relative after:absolute after:bottom-1 after:left-1/2 after:h-1.5 after:w-1.5 after:-translate-x-1/2 after:rounded-full after:bg-red-500/60 after:content-['']",
-                    mediumPriority:
-                      "relative after:absolute after:bottom-1 after:left-1/2 after:h-1.5 after:w-1.5 after:-translate-x-1/2 after:rounded-full after:bg-amber-500/60 after:content-['']",
-                    lowPriority:
-                      "relative after:absolute after:bottom-1 after:left-1/2 after:h-1.5 after:w-1.5 after:-translate-x-1/2 after:rounded-full after:bg-emerald-500/60 after:content-['']"
-                  }}
-                />
+                {isProjectTasksLoading ? (
+                  <Skeleton className='h-77.5 w-full' />
+                ) : (
+                  <Calendar
+                    mode='single'
+                    selected={selectedDay}
+                    onSelect={setSelectedDay}
+                    modifiers={calendarIndicators}
+                    modifiersClassNames={{
+                      highPriority:
+                        "relative after:absolute after:bottom-1 after:left-1/2 after:h-1.5 after:w-1.5 after:-translate-x-1/2 after:rounded-full after:bg-red-500/60 after:content-['']",
+                      mediumPriority:
+                        "relative after:absolute after:bottom-1 after:left-1/2 after:h-1.5 after:w-1.5 after:-translate-x-1/2 after:rounded-full after:bg-amber-500/60 after:content-['']",
+                      lowPriority:
+                        "relative after:absolute after:bottom-1 after:left-1/2 after:h-1.5 after:w-1.5 after:-translate-x-1/2 after:rounded-full after:bg-emerald-500/60 after:content-['']"
+                    }}
+                  />
+                )}
                 <div className='flex flex-col rounded-md border p-3'>
                   <div className='text-muted-foreground text-xs font-semibold uppercase'>
                     Atividades do dia
@@ -668,7 +810,16 @@ export default function MembroPage() {
                   </div>
                   <ScrollArea className='mt-3 h-48 pr-2'>
                     <div className='space-y-2'>
-                      {tasksForDay.length === 0 ? (
+                      {isProjectTasksLoading ? (
+                        <div className='space-y-2'>
+                          {Array.from({ length: 3 }).map((_, index) => (
+                            <div key={`day-skeleton-${index}`} className='rounded-md border p-2'>
+                              <Skeleton className='h-3 w-3/4' />
+                              <Skeleton className='mt-2 h-3 w-1/3' />
+                            </div>
+                          ))}
+                        </div>
+                      ) : tasksForDay.length === 0 ? (
                         <div className='text-muted-foreground text-sm'>
                           Nenhuma atividade para este dia.
                         </div>
@@ -708,48 +859,147 @@ export default function MembroPage() {
             </CardContent>
           </Card>
 
-          <Card className='h-full'>
+          <Card className='h-105'>
             <CardHeader>
-              <CardTitle>Informacoes</CardTitle>
-              <CardDescription>Dados do membro</CardDescription>
+              <CardTitle>Agenda</CardTitle>
+              <CardDescription>Novo compromisso</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className='grid grid-cols-1 gap-3 text-sm sm:grid-cols-2'>
-                <div className='rounded-md border p-3'>
-                  <div className='text-muted-foreground text-xs'>Nome</div>
-                  <div className='mt-1 font-medium'>
-                    {memberInfo.name || '--'}
+              <div className='space-y-3 rounded-md border p-4'>
+                {isMemberLoading ? (
+                  <div className='space-y-3'>
+                    <Skeleton className='h-4 w-1/3' />
+                    <Skeleton className='h-9 w-full' />
+                    <Skeleton className='h-4 w-1/3' />
+                    <Skeleton className='h-9 w-full' />
+                    <Skeleton className='h-4 w-1/3' />
+                    <Skeleton className='h-24 w-full' />
+                  </div>
+                ) : (
+                <>
+                <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
+                  <div className='space-y-1'>
+                    <label className='text-sm font-medium' htmlFor='agendaDate'>
+                      Data
+                    </label>
+                    <Input
+                      id='agendaDate'
+                      type='date'
+                      value={agendaForm.date}
+                      disabled={isSavingAgenda}
+                      onChange={(event) =>
+                        setAgendaForm((current) => ({
+                          ...current,
+                          date: event.target.value
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className='space-y-1'>
+                    <label
+                      className='text-sm font-medium'
+                      htmlFor='agendaTitle'
+                    >
+                      Nome da atividade
+                    </label>
+                    <Input
+                      id='agendaTitle'
+                      placeholder='Ex: Visita tecnica'
+                      value={agendaForm.title}
+                      disabled={isSavingAgenda}
+                      onChange={(event) =>
+                        setAgendaForm((current) => ({
+                          ...current,
+                          title: event.target.value
+                        }))
+                      }
+                    />
                   </div>
                 </div>
-                <div className='rounded-md border p-3'>
-                  <div className='text-muted-foreground text-xs'>Email</div>
-                  <div className='mt-1 font-medium'>
-                    {memberInfo.email || '--'}
+                <div className='space-y-1'>
+                  <label className='text-sm font-medium' htmlFor='agendaNotes'>
+                    Descricao
+                  </label>
+                  <Textarea
+                    id='agendaNotes'
+                    placeholder='Detalhes do compromisso'
+                    className='min-h-16'
+                    value={agendaForm.description}
+                    disabled={isSavingAgenda}
+                    onChange={(event) =>
+                      setAgendaForm((current) => ({
+                        ...current,
+                        description: event.target.value
+                      }))
+                    }
+                  />
+                </div>
+                <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
+                  <div className='space-y-1'>
+                    <label className='text-sm font-medium'>Prioridade</label>
+                    <Select
+                      value={agendaForm.priority}
+                      disabled={isSavingAgenda}
+                      onValueChange={(value) =>
+                        setAgendaForm((current) => ({
+                          ...current,
+                          priority: value
+                        }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder='Prioridade' />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {priorityOptions.map((priority) => (
+                          <SelectItem key={priority} value={priority}>
+                            {priority}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className='space-y-1'>
+                    <label className='text-sm font-medium'>Status</label>
+                    <Select
+                      value={agendaForm.status}
+                      disabled={isSavingAgenda}
+                      onValueChange={(value) =>
+                        setAgendaForm((current) => ({
+                          ...current,
+                          status: value
+                        }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder='Status' />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {statusOptions.map((status) => (
+                          <SelectItem key={status} value={status}>
+                            {status}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
-                <div className='rounded-md border p-3'>
-                  <div className='text-muted-foreground text-xs'>Setor</div>
-                  <div className='mt-1 font-medium'>
-                    {memberInfo.sector || '--'}
-                  </div>
+                <div className='flex justify-end'>
+                  <Button
+                    type='button'
+                    onClick={handleAddAgendaTask}
+                    disabled={isSavingAgenda}
+                  >
+                    {isSavingAgenda ? 'Salvando...' : 'Adicionar'}
+                  </Button>
                 </div>
-                <div className='rounded-md border p-3'>
-                  <div className='text-muted-foreground text-xs'>CPF</div>
-                  <div className='mt-1 font-medium'>
-                    {memberInfo.cpf || '--'}
-                  </div>
-                </div>
-                <div className='rounded-md border p-3 sm:col-span-2'>
-                  <div className='text-muted-foreground text-xs'>Cargo</div>
-                  <div className='mt-1 font-medium'>
-                    {memberInfo.role || '--'}
-                  </div>
-                </div>
+                </>
+                )}
               </div>
             </CardContent>
           </Card>
 
-          <Card className='h-full'>
+          <Card className='h-105'>
             <CardHeader>
               <CardTitle>Alertas</CardTitle>
               <CardDescription>Itens para acompanhamento</CardDescription>
@@ -757,27 +1007,38 @@ export default function MembroPage() {
             <CardContent>
               <ScrollArea className='h-56 pr-3'>
                 <div className='space-y-2'>
-                  {memberAlerts.map((alert) => (
-                    <div
-                      key={alert.id}
-                      className='flex items-start justify-between gap-3 rounded-md border p-3'
-                    >
-                      <div className='flex flex-col'>
-                        <span className='text-sm font-medium'>
-                          {alert.title}
-                        </span>
-                        <span className='text-muted-foreground text-xs'>
-                          {alert.detail}
-                        </span>
-                        <span className='text-muted-foreground text-xs'>
-                          {alert.time}
-                        </span>
-                      </div>
-                      <Badge className={alertLevelStyles[alert.level]}>
-                        {alert.level}
-                      </Badge>
+                  {isMemberLoading ? (
+                    <div className='space-y-2'>
+                      {Array.from({ length: 3 }).map((_, index) => (
+                        <div key={`alert-skeleton-${index}`} className='rounded-md border p-3'>
+                          <Skeleton className='h-4 w-1/2' />
+                          <Skeleton className='mt-2 h-3 w-3/4' />
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  ) : (
+                    memberAlerts.map((alert) => (
+                      <div
+                        key={alert.id}
+                        className='flex items-start justify-between gap-3 rounded-md border p-3'
+                      >
+                        <div className='flex flex-col'>
+                          <span className='text-sm font-medium'>
+                            {alert.title}
+                          </span>
+                          <span className='text-muted-foreground text-xs'>
+                            {alert.detail}
+                          </span>
+                          <span className='text-muted-foreground text-xs'>
+                            {alert.time}
+                          </span>
+                        </div>
+                        <Badge className={alertLevelStyles[alert.level]}>
+                          {alert.level}
+                        </Badge>
+                      </div>
+                    ))
+                  )}
                 </div>
               </ScrollArea>
             </CardContent>
@@ -795,162 +1056,68 @@ export default function MembroPage() {
             </DialogDescription>
           </DialogHeader>
           <div className='grid gap-3'>
-            <Input
-              placeholder='Nome da atividade'
-              value={editTask.name}
-              disabled={isSavingEdit}
-              onChange={(event) =>
-                setEditTask((current) => ({
-                  ...current,
-                  name: event.target.value
-                }))
-              }
-            />
-            <Textarea
-              placeholder='Descricao'
-              className='min-h-20'
-              value={editTask.description}
-              disabled={isSavingEdit}
-              onChange={(event) =>
-                setEditTask((current) => ({
-                  ...current,
-                  description: event.target.value
-                }))
-              }
-            />
-            <div className='grid gap-2 sm:grid-cols-2'>
-              <Input
-                type='date'
-                value={editTask.dueDate}
-                disabled={isSavingEdit}
-                onChange={(event) =>
-                  setEditTask((current) => ({
-                    ...current,
-                    dueDate: event.target.value
-                  }))
-                }
-              />
-              <Popover open={isEditOwnerOpen} onOpenChange={setIsEditOwnerOpen}>
-                <PopoverAnchor asChild>
-                  <div>
-                    <Input
-                      ref={editOwnerInputRef}
-                      placeholder='Responsavel'
-                      value={editTask.owner}
-                      disabled={isSavingEdit}
-                      onFocus={() => setIsEditOwnerOpen(true)}
-                      onBlur={closeEditOwnerPopover}
-                      onChange={(event) => {
-                        const value = event.target.value;
-                        setEditTask((current) => ({
-                          ...current,
-                          owner: value
-                        }));
-                        if (!value) {
-                          setEditTask((current) => ({
-                            ...current,
-                            ownerId: ''
-                          }));
-                        }
-                        if (!isEditOwnerOpen) {
-                          setIsEditOwnerOpen(true);
-                        }
-                      }}
-                    />
-                  </div>
-                </PopoverAnchor>
-                <PopoverContent
-                  align='start'
-                  side='top'
-                  className='w-[--radix-popover-trigger-width] p-1'
-                  onOpenAutoFocus={(event) => event.preventDefault()}
-                  onCloseAutoFocus={(event) => event.preventDefault()}
-                  onMouseDown={(event) => event.preventDefault()}
-                >
-                  {isMembersLoading ? (
-                    <div className='text-muted-foreground px-2 py-2 text-sm'>
-                      Carregando membros...
-                    </div>
-                  ) : filteredEditMembers.length === 0 ? (
-                    <div className='text-muted-foreground px-2 py-2 text-sm'>
-                      Nenhum membro encontrado.
-                    </div>
-                  ) : (
-                    <ScrollArea className='max-h-48'>
-                      <div className='flex flex-col gap-1 p-1'>
-                        {filteredEditMembers.map((member) => (
-                          <button
-                            key={member.id}
-                            type='button'
-                            className='hover:bg-accent flex flex-col rounded-md px-2 py-1.5 text-left text-sm'
-                            onMouseDown={(event) => event.preventDefault()}
-                            onClick={() => {
-                              setEditTask((current) => ({
-                                ...current,
-                                owner: member.name,
-                                ownerId: member.id
-                              }));
-                              setIsEditOwnerOpen(false);
-                              editOwnerInputRef.current?.focus();
-                            }}
-                          >
-                            <span className='font-medium'>{member.name}</span>
-                            {member.role ? (
-                              <span className='text-muted-foreground text-xs'>
-                                {member.role}
-                              </span>
-                            ) : null}
-                          </button>
-                        ))}
-                      </div>
-                    </ScrollArea>
-                  )}
-                </PopoverContent>
-              </Popover>
+            <div className='grid grid-cols-1 gap-2 sm:grid-cols-2'>
+              <div className='rounded-md border p-3 text-sm'>
+                <div className='text-muted-foreground text-xs'>Prazo</div>
+                <div className='mt-1 font-medium'>{activeTask?.due || '--'}</div>
+              </div>
+              <div className='rounded-md border p-3 text-sm'>
+                <div className='text-muted-foreground text-xs'>Prioridade</div>
+                {activeTask ? (
+                  <Badge className={priorityStyles[activeTask.priority]}>
+                    {activeTask.priority}
+                  </Badge>
+                ) : (
+                  <span className='text-muted-foreground text-xs'>--</span>
+                )}
+              </div>
             </div>
-            <div className='grid gap-2 sm:grid-cols-2'>
-              <Select
-                value={editTask.priority}
-                disabled={isSavingEdit}
-                onValueChange={(value) =>
-                  setEditTask((current) => ({
-                    ...current,
-                    priority: value
-                  }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder='Prioridade' />
-                </SelectTrigger>
-                <SelectContent>
-                  {priorityOptions.map((priority) => (
-                    <SelectItem key={priority} value={priority}>
-                      {priority}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select
-                value={editTask.status}
-                disabled={isSavingEdit}
-                onValueChange={(value) =>
-                  setEditTask((current) => ({
-                    ...current,
-                    status: value
-                  }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder='Status' />
-                </SelectTrigger>
-                <SelectContent>
-                  {statusOptions.map((status) => (
-                    <SelectItem key={status} value={status}>
-                      {status}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <Select
+              value={editStatus}
+              disabled={isSavingEdit}
+              onValueChange={setEditStatus}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder='Status' />
+              </SelectTrigger>
+              <SelectContent>
+                {statusOptions.map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {status}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Textarea
+              placeholder='Adicionar atualizacao'
+              className='min-h-20'
+              value={updateNote}
+              disabled={isSavingEdit}
+              onChange={(event) => setUpdateNote(event.target.value)}
+            />
+            <div className='rounded-md border p-3'>
+              <div className='text-muted-foreground text-xs'>Atualizacoes</div>
+              <div className='mt-2 space-y-2'>
+                {activeTask?.updates && activeTask.updates.length > 0 ? (
+                  activeTask.updates.map((update) => (
+                    <div key={update.id} className='rounded-md border p-2'>
+                      <div className='text-xs font-medium'>
+                        {update.author}
+                      </div>
+                      <div className='text-muted-foreground text-xs'>
+                        {update.note}
+                      </div>
+                      <div className='text-muted-foreground text-[11px]'>
+                        {update.time}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className='text-muted-foreground text-xs'>
+                    Sem atualizacoes.
+                  </div>
+                )}
+              </div>
             </div>
           </div>
           <DialogFooter>
@@ -975,7 +1142,7 @@ export default function MembroPage() {
               onClick={handleUpdateTask}
               disabled={isSavingEdit}
             >
-              {isSavingEdit ? 'Salvando...' : 'Salvar alteracoes'}
+              {isSavingEdit ? 'Salvando...' : 'Salvar atualizacao'}
             </Button>
           </DialogFooter>
         </DialogContent>
