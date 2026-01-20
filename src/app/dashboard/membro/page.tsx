@@ -3,6 +3,12 @@ import * as React from 'react';
 import PageContainer from '@/components/layout/page-container';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Popover,
+  PopoverAnchor,
+  PopoverContent
+} from '@/components/ui/popover';
 import {
   Card,
   CardContent,
@@ -11,101 +17,581 @@ import {
   CardTitle
 } from '@/components/ui/card';
 import { Calendar } from '@/components/ui/calendar';
-import { Input } from '@/components/ui/input';
-import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
+import { firebaseDb } from '@/lib/firebase/client';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  orderBy,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where
+} from 'firebase/firestore';
+import { format } from 'date-fns';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import { toast } from 'sonner';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog';
 
-const tasks = [
-  {
-    id: 'task-1',
-    title: 'Revisar backlog semanal',
-    due: 'Hoje',
-    status: 'Em andamento',
-    priority: 'Alta'
-  },
-  {
-    id: 'task-2',
-    title: 'Atualizar checklist de QA',
-    due: 'Amanha',
-    status: 'Planejado',
-    priority: 'Media'
-  },
-  {
-    id: 'task-3',
-    title: 'Alinhar dependencias do time',
-    due: 'Sexta',
-    status: 'Em andamento',
-    priority: 'Baixa'
-  },
-  {
-    id: 'task-4',
-    title: 'Revisar entregas do sprint',
-    due: 'Segunda',
-    status: 'Bloqueado',
-    priority: 'Alta'
-  },
-  {
-    id: 'task-5',
-    title: 'Validar wireframes',
-    due: 'Quarta',
-    status: 'Planejado',
-    priority: 'Media'
-  }
-];
+type MemberTask = {
+  id: string;
+  activityId?: string;
+  projectId?: string;
+  projectName?: string;
+  title: string;
+  due: string;
+  status: string;
+  priority: string;
+  owner?: string;
+  ownerId?: string;
+  description?: string;
+};
+
+type MemberAlert = {
+  id: string;
+  title: string;
+  detail: string;
+  level: string;
+  time: string;
+};
+
+type MemberInfo = {
+  name: string;
+  email: string;
+  sector: string;
+  cpf: string;
+  role: string;
+};
 
 const priorityStyles: Record<string, string> = {
   Alta: 'bg-red-500/10 text-red-700',
   Media: 'bg-amber-500/10 text-amber-700',
   Baixa: 'bg-emerald-500/10 text-emerald-700'
 };
+const priorityOptions = ['Alta', 'Media', 'Baixa'];
 
 const statusStyles: Record<string, string> = {
   'Em andamento': 'bg-primary/10 text-primary',
   Planejado: 'bg-muted text-muted-foreground',
-  Bloqueado: 'bg-red-500/10 text-red-700'
+  Bloqueado: 'bg-red-500/10 text-red-700',
+  Concluido: 'bg-emerald-500/10 text-emerald-700'
+};
+const statusOptions = ['Planejado', 'Em andamento', 'Bloqueado', 'Concluido'];
+
+type MemberOption = {
+  id: string;
+  name: string;
+  role?: string;
+};
+const priorityRank: Record<string, number> = {
+  Alta: 3,
+  Media: 2,
+  Baixa: 1
+};
+
+const alerts: MemberAlert[] = [
+  {
+    id: 'alert-1',
+    title: 'Entrega proxima',
+    detail: 'Revisar prototipos ate sexta-feira',
+    level: 'alto',
+    time: 'ha 2 horas'
+  },
+  {
+    id: 'alert-2',
+    title: 'Pendencia de aprovacao',
+    detail: 'Feedback do cliente pendente',
+    level: 'medio',
+    time: 'ha 5 horas'
+  },
+  {
+    id: 'alert-3',
+    title: 'Reuniao marcada',
+    detail: 'Daily com engenharia amanha',
+    level: 'baixo',
+    time: 'ha 1 dia'
+  },
+  {
+    id: 'alert-4',
+    title: 'Ajuste urgente',
+    detail: 'Atualizar layout da home',
+    level: 'alto',
+    time: 'ha 30 min'
+  }
+];
+
+const alertLevelStyles: Record<string, string> = {
+  alto: 'bg-red-500/10 text-red-700',
+  medio: 'bg-amber-500/10 text-amber-700',
+  baixo: 'bg-emerald-500/10 text-emerald-700'
+};
+
+const parseDueDate = (value: string) => {
+  if (!value) {
+    return null;
+  }
+  const parts = value.split('/');
+  if (parts.length !== 3) {
+    return null;
+  }
+  const [day, month, year] = parts;
+  const parsed = new Date(
+    Number.parseInt(year, 10),
+    Number.parseInt(month, 10) - 1,
+    Number.parseInt(day, 10)
+  );
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const formatDateLabel = (value: string) => {
+  if (!value) {
+    return '';
+  }
+  const parsed = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+  return format(parsed, 'dd/MM/yyyy');
+};
+
+const toInputDate = (value: string) => {
+  if (!value) {
+    return '';
+  }
+  const parts = value.split('/');
+  if (parts.length !== 3) {
+    return '';
+  }
+  const [day, month, year] = parts;
+  return `${year}-${month}-${day}`;
 };
 
 export default function MembroPage() {
+  const searchParams = useSearchParams();
+  const memberIdParam = searchParams.get('memberId') ?? searchParams.get('id');
+  const memberNameParam = searchParams.get('name');
+  const [memberId, setMemberId] = React.useState('');
   const [selectedDay, setSelectedDay] = React.useState<Date | undefined>(
     new Date()
   );
-  const totalSeconds = 4 * 60 * 60;
-  const [elapsedSeconds, setElapsedSeconds] = React.useState(0);
-  const [isRunning, setIsRunning] = React.useState(false);
+  const [memberInfo, setMemberInfo] = React.useState<MemberInfo>({
+    name: '',
+    email: '',
+    sector: '',
+    cpf: '',
+    role: ''
+  });
+  const [memberTasks, setMemberTasks] = React.useState<MemberTask[]>([]);
+  const [memberAlerts, setMemberAlerts] = React.useState<MemberAlert[]>(alerts);
+  const [activeTask, setActiveTask] = React.useState<MemberTask | null>(null);
+  const [isTaskModalOpen, setIsTaskModalOpen] = React.useState(false);
+  const [memberOptions, setMemberOptions] = React.useState<MemberOption[]>([]);
+  const [isMembersLoading, setIsMembersLoading] = React.useState(false);
+  const [isEditOwnerOpen, setIsEditOwnerOpen] = React.useState(false);
+  const editOwnerInputRef = React.useRef<HTMLInputElement | null>(null);
+  const closeEditOwnerTimeout = React.useRef<NodeJS.Timeout | null>(null);
+  const [isSavingEdit, setIsSavingEdit] = React.useState(false);
+  const [editTask, setEditTask] = React.useState({
+    name: '',
+    description: '',
+    dueDate: '',
+    owner: '',
+    ownerId: '',
+    status: statusOptions[1],
+    priority: priorityOptions[1]
+  });
+  const selectedDayLabel = selectedDay ? format(selectedDay, 'dd/MM/yyyy') : '';
+  const tasksForDay = selectedDayLabel
+    ? memberTasks.filter((task) => task.due === selectedDayLabel)
+    : [];
+  const priorityByDate = React.useMemo(() => {
+    const map = new Map<string, string>();
+    memberTasks.forEach((task) => {
+      const parsed = parseDueDate(task.due);
+      if (!parsed) {
+        return;
+      }
+      const key = format(parsed, 'yyyy-MM-dd');
+      const current = map.get(key);
+      if (!current || priorityRank[task.priority] > priorityRank[current]) {
+        map.set(key, task.priority);
+      }
+    });
+    return map;
+  }, [memberTasks]);
+  const calendarIndicators = React.useMemo(() => {
+    const high: Date[] = [];
+    const medium: Date[] = [];
+    const low: Date[] = [];
+    priorityByDate.forEach((priority, key) => {
+      const parsed = new Date(`${key}T00:00:00`);
+      if (Number.isNaN(parsed.getTime())) {
+        return;
+      }
+      if (priority === 'Alta') {
+        high.push(parsed);
+      } else if (priority === 'Media') {
+        medium.push(parsed);
+      } else {
+        low.push(parsed);
+      }
+    });
+    return {
+      highPriority: high,
+      mediumPriority: medium,
+      lowPriority: low
+    };
+  }, [priorityByDate]);
+
+  const closeEditOwnerPopover = React.useCallback(() => {
+    if (closeEditOwnerTimeout.current) {
+      clearTimeout(closeEditOwnerTimeout.current);
+    }
+    closeEditOwnerTimeout.current = setTimeout(() => {
+      setIsEditOwnerOpen(false);
+    }, 120);
+  }, []);
 
   React.useEffect(() => {
-    if (!isRunning) {
-      return undefined;
+    if (!firebaseDb) {
+      return;
     }
 
-    const intervalId = window.setInterval(() => {
-      setElapsedSeconds((current) => {
-        if (current >= totalSeconds) {
-          setIsRunning(false);
-          return totalSeconds;
-        }
-        return current + 1;
+    let isActive = true;
+    const applyMemberSnapshot = (
+      docId: string,
+      data: Partial<MemberInfo> & {
+        tasks?: MemberTask[];
+        alerts?: MemberAlert[];
+      }
+    ) => {
+      setMemberId(docId);
+      setMemberInfo({
+        name: data.name ?? '',
+        email: data.email ?? '',
+        sector: data.sector ?? '',
+        cpf: data.cpf ?? '',
+        role: data.role ?? ''
       });
-    }, 1000);
+      if (Array.isArray(data.tasks)) {
+        setMemberTasks(data.tasks);
+      }
+      if (Array.isArray(data.alerts)) {
+        setMemberAlerts(data.alerts);
+      } else {
+        setMemberAlerts(alerts);
+      }
+    };
+
+    const loadMemberById = async (docId: string) => {
+      const snapshot = await getDoc(doc(firebaseDb, 'members', docId));
+      if (!snapshot.exists() || !isActive) {
+        return false;
+      }
+      applyMemberSnapshot(snapshot.id, snapshot.data() as Partial<MemberInfo>);
+      return true;
+    };
+
+    const loadMember = async () => {
+      try {
+        if (memberIdParam) {
+          await loadMemberById(memberIdParam);
+          return;
+        }
+        if (memberNameParam) {
+          const nameQuery = query(
+            collection(firebaseDb, 'members'),
+            where('name', '==', memberNameParam)
+          );
+          const snapshot = await getDocs(nameQuery);
+          const first = snapshot.docs[0];
+          if (first && isActive) {
+            applyMemberSnapshot(
+              first.id,
+              first.data() as Partial<MemberInfo>
+            );
+            return;
+          }
+        }
+
+        const fallbackSnapshot = await getDocs(
+          query(collection(firebaseDb, 'members'), orderBy('name', 'asc'))
+        );
+        const first = fallbackSnapshot.docs[0];
+        if (first && isActive) {
+          applyMemberSnapshot(first.id, first.data() as Partial<MemberInfo>);
+          return;
+        }
+
+        if (isActive) {
+          setMemberId('');
+          setMemberInfo({
+            name: '',
+            email: '',
+            sector: '',
+            cpf: '',
+            role: ''
+          });
+          setMemberTasks([]);
+          setMemberAlerts(alerts);
+          toast.error('Nenhum membro encontrado.');
+        }
+      } catch (error) {
+        console.error('Falha ao carregar membro:', error);
+        toast.error('Nao foi possivel carregar o membro.');
+      }
+    };
+
+    loadMember();
 
     return () => {
-      window.clearInterval(intervalId);
+      isActive = false;
     };
-  }, [isRunning, totalSeconds]);
+  }, [memberIdParam, memberNameParam]);
 
-  const progressValue = (elapsedSeconds / totalSeconds) * 100;
-  const formattedTime = new Date(elapsedSeconds * 1000)
-    .toISOString()
-    .slice(11, 19);
+  React.useEffect(() => {
+    if (!firebaseDb) {
+      return;
+    }
+
+    let isActive = true;
+    const loadMembers = async () => {
+      setIsMembersLoading(true);
+      try {
+        const snapshot = await getDocs(
+          query(collection(firebaseDb, 'members'), orderBy('name', 'asc'))
+        );
+        if (!isActive) {
+          return;
+        }
+
+        setMemberOptions(
+          snapshot.docs.map((docSnapshot) => {
+            const data = docSnapshot.data() as Partial<MemberOption>;
+            return {
+              id: docSnapshot.id,
+              name: data.name ?? 'Sem nome',
+              role: data.role
+            };
+          })
+        );
+      } catch (error) {
+        console.error('Falha ao carregar membros:', error);
+        toast.error('Nao foi possivel carregar membros.');
+      } finally {
+        if (isActive) {
+          setIsMembersLoading(false);
+        }
+      }
+    };
+
+    loadMembers();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (!firebaseDb || !memberId) {
+      return;
+    }
+
+    let isActive = true;
+    const loadTasks = async () => {
+      try {
+        const snapshot = await getDocs(collection(firebaseDb, 'projects'));
+        if (!isActive) {
+          return;
+        }
+
+        const tasksFromDb: MemberTask[] = [];
+        snapshot.docs.forEach((docSnapshot) => {
+          const data = docSnapshot.data() as {
+            name?: string;
+            Activities?: Array<{
+              id: string;
+              name: string;
+              dueAt?: string;
+              status?: string;
+              priority?: string;
+              ownerId?: string;
+              owner?: string;
+              description?: string;
+            }>;
+          };
+          if (!Array.isArray(data.Activities)) {
+            return;
+          }
+
+          data.Activities.forEach((activity) => {
+            if (activity.ownerId !== memberId) {
+              return;
+            }
+
+            tasksFromDb.push({
+              id: `${docSnapshot.id}-${activity.id}`,
+              activityId: activity.id,
+              projectId: docSnapshot.id,
+              projectName: data.name ?? 'Projeto',
+              title: activity.name ?? 'Tarefa',
+              due: activity.dueAt ?? '',
+              status: activity.status ?? 'Planejado',
+              priority: activity.priority ?? 'Media',
+              owner: activity.owner,
+              ownerId: activity.ownerId,
+              description: activity.description
+            });
+          });
+        });
+
+        setMemberTasks(tasksFromDb);
+      } catch (error) {
+        console.error('Falha ao carregar tarefas:', error);
+        toast.error('Nao foi possivel carregar tarefas.');
+      }
+    };
+
+    loadTasks();
+
+    return () => {
+      isActive = false;
+    };
+  }, [memberId]);
+
+  const handleTaskClick = (task: MemberTask) => {
+    setActiveTask(task);
+    setEditTask({
+      name: task.title,
+      description: task.description ?? '',
+      dueDate: toInputDate(task.due),
+      owner: task.owner ?? '',
+      ownerId: task.ownerId ?? '',
+      status: task.status ?? statusOptions[1],
+      priority: task.priority ?? priorityOptions[1]
+    });
+    setIsTaskModalOpen(true);
+  };
+
+  const filteredEditMembers = memberOptions.filter((member) =>
+    member.name.toLowerCase().includes(editTask.owner.toLowerCase().trim())
+  );
+
+  const handleUpdateTask = async () => {
+    if (!activeTask?.projectId || !activeTask.activityId) {
+      toast.error('Atividade nao encontrada.');
+      return;
+    }
+    if (!firebaseDb) {
+      toast.error('Firebase nao configurado.');
+      return;
+    }
+    if (!editTask.name.trim()) {
+      toast.error('Informe o nome da atividade.');
+      return;
+    }
+    if (!editTask.owner.trim()) {
+      toast.error('Informe o responsavel.');
+      return;
+    }
+
+    setIsSavingEdit(true);
+    try {
+      const projectRef = doc(firebaseDb, 'projects', activeTask.projectId);
+      const snapshot = await getDoc(projectRef);
+      if (!snapshot.exists()) {
+        toast.error('Projeto nao encontrado.');
+        return;
+      }
+
+      const data = snapshot.data() as { Activities?: MemberTask[] };
+      const nextActivities = Array.isArray(data.Activities)
+        ? data.Activities.map((activity) => {
+            if (activity.id !== activeTask.activityId) {
+              return activity;
+            }
+            return {
+              ...activity,
+              name: editTask.name.trim(),
+              description: editTask.description.trim(),
+              dueAt: formatDateLabel(editTask.dueDate),
+              owner: editTask.owner.trim(),
+              ownerId: editTask.ownerId || undefined,
+              status: editTask.status,
+              priority: editTask.priority
+            };
+          })
+        : [];
+
+      await updateDoc(projectRef, {
+        Activities: nextActivities,
+        updatedAt: serverTimestamp()
+      });
+
+      setMemberTasks((current) =>
+        current.map((task) =>
+          task.id === activeTask.id
+            ? {
+                ...task,
+                title: editTask.name.trim(),
+                description: editTask.description.trim(),
+                due: formatDateLabel(editTask.dueDate),
+                owner: editTask.owner.trim(),
+                ownerId: editTask.ownerId || undefined,
+                status: editTask.status,
+                priority: editTask.priority
+              }
+            : task
+        )
+      );
+      setActiveTask((current) =>
+        current
+          ? {
+              ...current,
+              title: editTask.name.trim(),
+              description: editTask.description.trim(),
+              due: formatDateLabel(editTask.dueDate),
+              owner: editTask.owner.trim(),
+              ownerId: editTask.ownerId || undefined,
+              status: editTask.status,
+              priority: editTask.priority
+            }
+          : current
+      );
+      toast.success('Atividade atualizada.');
+    } catch (error) {
+      console.error('Falha ao atualizar atividade:', error);
+      toast.error('Nao foi possivel atualizar a atividade.');
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
 
   return (
     <PageContainer
       pageTitle='Membro'
-      pageDescription='Agenda, tarefas e tempo semanal'
+      pageDescription='Tarefas, calendario e alertas'
     >
       <div className='flex flex-1 flex-col space-y-4'>
-        <div className='*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs lg:grid-cols-2'>
+        <div className='*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 *:data-[slot=card]:bg-linear-to-t *:data-[slot=card]:shadow-xs lg:grid-cols-2'>
           <Card className='h-full'>
             <CardHeader>
               <CardTitle>Lista de tarefas</CardTitle>
@@ -114,29 +600,39 @@ export default function MembroPage() {
             <CardContent>
               <ScrollArea className='h-56 pr-3'>
                 <div className='space-y-2'>
-                  {tasks.map((task) => (
-                    <div
-                      key={task.id}
-                      className='flex items-start justify-between gap-3 rounded-md border p-3'
-                    >
-                      <div className='flex flex-col'>
-                        <span className='text-sm font-medium'>
-                          {task.title}
-                        </span>
-                        <span className='text-muted-foreground text-xs'>
-                          Prazo: {task.due}
-                        </span>
-                      </div>
-                      <div className='flex flex-col items-end gap-1'>
-                        <Badge className={statusStyles[task.status]}>
-                          {task.status}
-                        </Badge>
-                        <Badge className={priorityStyles[task.priority]}>
-                          {task.priority}
-                        </Badge>
-                      </div>
+                  {memberTasks.length === 0 ? (
+                    <div className='text-muted-foreground text-sm'>
+                      Nenhuma tarefa encontrada.
                     </div>
-                  ))}
+                  ) : (
+                    memberTasks.map((task) => (
+                      <button
+                        key={task.id}
+                        type='button'
+                        onClick={() => handleTaskClick(task)}
+                        className='hover:bg-accent focus-visible:ring-ring/50 w-full cursor-pointer rounded-md border p-3 text-left transition-colors focus-visible:ring-[3px] focus-visible:outline-none'
+                      >
+                        <div className='flex items-start justify-between gap-3'>
+                          <div className='flex flex-col'>
+                            <span className='text-sm font-medium'>
+                              {task.title}
+                            </span>
+                            <span className='text-muted-foreground text-xs'>
+                              Prazo: {task.due}
+                            </span>
+                          </div>
+                          <div className='flex flex-col items-end gap-1'>
+                            <Badge className={statusStyles[task.status]}>
+                              {task.status}
+                            </Badge>
+                            <Badge className={priorityStyles[task.priority]}>
+                              {task.priority}
+                            </Badge>
+                          </div>
+                        </div>
+                      </button>
+                    ))
+                  )}
                 </div>
               </ScrollArea>
             </CardContent>
@@ -148,53 +644,106 @@ export default function MembroPage() {
               <CardDescription>Dias clicaveis para agenda</CardDescription>
             </CardHeader>
             <CardContent>
-              <Calendar
-                mode='single'
-                selected={selectedDay}
-                onSelect={setSelectedDay}
-              />
+              <div className='grid gap-4 md:grid-cols-[260px_minmax(0,1fr)]'>
+                <Calendar
+                  mode='single'
+                  selected={selectedDay}
+                  onSelect={setSelectedDay}
+                  modifiers={calendarIndicators}
+                  modifiersClassNames={{
+                    highPriority:
+                      "relative after:absolute after:bottom-1 after:left-1/2 after:h-1.5 after:w-1.5 after:-translate-x-1/2 after:rounded-full after:bg-red-500/60 after:content-['']",
+                    mediumPriority:
+                      "relative after:absolute after:bottom-1 after:left-1/2 after:h-1.5 after:w-1.5 after:-translate-x-1/2 after:rounded-full after:bg-amber-500/60 after:content-['']",
+                    lowPriority:
+                      "relative after:absolute after:bottom-1 after:left-1/2 after:h-1.5 after:w-1.5 after:-translate-x-1/2 after:rounded-full after:bg-emerald-500/60 after:content-['']"
+                  }}
+                />
+                <div className='flex flex-col rounded-md border p-3'>
+                  <div className='text-muted-foreground text-xs font-semibold uppercase'>
+                    Atividades do dia
+                  </div>
+                  <div className='mt-1 text-sm font-medium'>
+                    {selectedDayLabel || 'Selecione uma data'}
+                  </div>
+                  <ScrollArea className='mt-3 h-48 pr-2'>
+                    <div className='space-y-2'>
+                      {tasksForDay.length === 0 ? (
+                        <div className='text-muted-foreground text-sm'>
+                          Nenhuma atividade para este dia.
+                        </div>
+                      ) : (
+                        tasksForDay.map((task) => (
+                          <button
+                            key={task.id}
+                            type='button'
+                            onClick={() => handleTaskClick(task)}
+                            className='hover:bg-accent focus-visible:ring-ring/50 w-full cursor-pointer rounded-md border p-2 text-left transition-colors focus-visible:ring-[3px] focus-visible:outline-none'
+                          >
+                            <div className='flex items-start justify-between gap-3'>
+                              <div className='flex flex-col'>
+                                <span className='text-sm font-medium'>
+                                  {task.title}
+                                </span>
+                                <span className='text-muted-foreground text-xs'>
+                                  Prazo: {task.due}
+                                </span>
+                              </div>
+                              <div className='flex flex-col items-end gap-1'>
+                                <Badge className={statusStyles[task.status]}>
+                                  {task.status}
+                                </Badge>
+                                <Badge className={priorityStyles[task.priority]}>
+                                  {task.priority}
+                                </Badge>
+                              </div>
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </ScrollArea>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
           <Card className='h-full'>
             <CardHeader>
-              <CardTitle>Agenda</CardTitle>
-              <CardDescription>Novo compromisso</CardDescription>
+              <CardTitle>Informacoes</CardTitle>
+              <CardDescription>Dados do membro</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className='space-y-3 rounded-md border p-4'>
-                <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
-                  <div className='space-y-1'>
-                    <label className='text-sm font-medium' htmlFor='agendaDate'>
-                      Data
-                    </label>
-                    <Input id='agendaDate' type='date' />
-                  </div>
-                  <div className='space-y-1'>
-                    <label
-                      className='text-sm font-medium'
-                      htmlFor='agendaTitle'
-                    >
-                      Nome da atividade
-                    </label>
-                    <Input
-                      id='agendaTitle'
-                      placeholder='Ex: Visita tecnica'
-                    />
+              <div className='grid grid-cols-1 gap-3 text-sm sm:grid-cols-2'>
+                <div className='rounded-md border p-3'>
+                  <div className='text-muted-foreground text-xs'>Nome</div>
+                  <div className='mt-1 font-medium'>
+                    {memberInfo.name || '--'}
                   </div>
                 </div>
-                <div className='space-y-1'>
-                  <label className='text-sm font-medium' htmlFor='agendaNotes'>
-                    Descricao
-                  </label>
-                  <Textarea
-                    id='agendaNotes'
-                    placeholder='Detalhes do compromisso'
-                    className='min-h-16'
-                  />
+                <div className='rounded-md border p-3'>
+                  <div className='text-muted-foreground text-xs'>Email</div>
+                  <div className='mt-1 font-medium'>
+                    {memberInfo.email || '--'}
+                  </div>
                 </div>
-                <div className='flex justify-end'>
-                  <Button type='button'>Adicionar</Button>
+                <div className='rounded-md border p-3'>
+                  <div className='text-muted-foreground text-xs'>Setor</div>
+                  <div className='mt-1 font-medium'>
+                    {memberInfo.sector || '--'}
+                  </div>
+                </div>
+                <div className='rounded-md border p-3'>
+                  <div className='text-muted-foreground text-xs'>CPF</div>
+                  <div className='mt-1 font-medium'>
+                    {memberInfo.cpf || '--'}
+                  </div>
+                </div>
+                <div className='rounded-md border p-3 sm:col-span-2'>
+                  <div className='text-muted-foreground text-xs'>Cargo</div>
+                  <div className='mt-1 font-medium'>
+                    {memberInfo.role || '--'}
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -202,41 +751,235 @@ export default function MembroPage() {
 
           <Card className='h-full'>
             <CardHeader>
-              <CardTitle>Timer semanal</CardTitle>
-              <CardDescription>Controle de 0 a 4 horas</CardDescription>
+              <CardTitle>Alertas</CardTitle>
+              <CardDescription>Itens para acompanhamento</CardDescription>
             </CardHeader>
-            <CardContent className='space-y-4'>
-              <div className='flex items-center justify-between'>
-                <div>
-                  <div className='text-sm font-medium'>Tempo</div>
-                  <div className='text-2xl font-semibold'>{formattedTime}</div>
+            <CardContent>
+              <ScrollArea className='h-56 pr-3'>
+                <div className='space-y-2'>
+                  {memberAlerts.map((alert) => (
+                    <div
+                      key={alert.id}
+                      className='flex items-start justify-between gap-3 rounded-md border p-3'
+                    >
+                      <div className='flex flex-col'>
+                        <span className='text-sm font-medium'>
+                          {alert.title}
+                        </span>
+                        <span className='text-muted-foreground text-xs'>
+                          {alert.detail}
+                        </span>
+                        <span className='text-muted-foreground text-xs'>
+                          {alert.time}
+                        </span>
+                      </div>
+                      <Badge className={alertLevelStyles[alert.level]}>
+                        {alert.level}
+                      </Badge>
+                    </div>
+                  ))}
                 </div>
-                <Button
-                  type='button'
-                  variant={isRunning ? 'outline' : 'default'}
-                  onClick={() => setIsRunning((current) => !current)}
-                >
-                  {isRunning ? 'Pausar' : 'Iniciar'}
-                </Button>
-              </div>
-              <div className='space-y-2'>
-                <div className='flex items-center justify-between text-xs text-muted-foreground'>
-                  <span>0h</span>
-                  <span>4h</span>
-                </div>
-                <Progress value={progressValue} />
-                <div className='text-sm'>
-                  Progresso:{' '}
-                  <span className='font-medium'>
-                    {Math.round(progressValue)}%
-                  </span>
-                </div>
-              </div>
+              </ScrollArea>
             </CardContent>
           </Card>
         </div>
-
       </div>
+      <Dialog open={isTaskModalOpen} onOpenChange={setIsTaskModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{activeTask?.title ?? 'Atividade'}</DialogTitle>
+            <DialogDescription>
+              {activeTask?.projectName
+                ? `Projeto: ${activeTask.projectName}`
+                : 'Detalhes da atividade'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className='grid gap-3'>
+            <Input
+              placeholder='Nome da atividade'
+              value={editTask.name}
+              disabled={isSavingEdit}
+              onChange={(event) =>
+                setEditTask((current) => ({
+                  ...current,
+                  name: event.target.value
+                }))
+              }
+            />
+            <Textarea
+              placeholder='Descricao'
+              className='min-h-20'
+              value={editTask.description}
+              disabled={isSavingEdit}
+              onChange={(event) =>
+                setEditTask((current) => ({
+                  ...current,
+                  description: event.target.value
+                }))
+              }
+            />
+            <div className='grid gap-2 sm:grid-cols-2'>
+              <Input
+                type='date'
+                value={editTask.dueDate}
+                disabled={isSavingEdit}
+                onChange={(event) =>
+                  setEditTask((current) => ({
+                    ...current,
+                    dueDate: event.target.value
+                  }))
+                }
+              />
+              <Popover open={isEditOwnerOpen} onOpenChange={setIsEditOwnerOpen}>
+                <PopoverAnchor asChild>
+                  <div>
+                    <Input
+                      ref={editOwnerInputRef}
+                      placeholder='Responsavel'
+                      value={editTask.owner}
+                      disabled={isSavingEdit}
+                      onFocus={() => setIsEditOwnerOpen(true)}
+                      onBlur={closeEditOwnerPopover}
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        setEditTask((current) => ({
+                          ...current,
+                          owner: value
+                        }));
+                        if (!value) {
+                          setEditTask((current) => ({
+                            ...current,
+                            ownerId: ''
+                          }));
+                        }
+                        if (!isEditOwnerOpen) {
+                          setIsEditOwnerOpen(true);
+                        }
+                      }}
+                    />
+                  </div>
+                </PopoverAnchor>
+                <PopoverContent
+                  align='start'
+                  side='top'
+                  className='w-[--radix-popover-trigger-width] p-1'
+                  onOpenAutoFocus={(event) => event.preventDefault()}
+                  onCloseAutoFocus={(event) => event.preventDefault()}
+                  onMouseDown={(event) => event.preventDefault()}
+                >
+                  {isMembersLoading ? (
+                    <div className='text-muted-foreground px-2 py-2 text-sm'>
+                      Carregando membros...
+                    </div>
+                  ) : filteredEditMembers.length === 0 ? (
+                    <div className='text-muted-foreground px-2 py-2 text-sm'>
+                      Nenhum membro encontrado.
+                    </div>
+                  ) : (
+                    <ScrollArea className='max-h-48'>
+                      <div className='flex flex-col gap-1 p-1'>
+                        {filteredEditMembers.map((member) => (
+                          <button
+                            key={member.id}
+                            type='button'
+                            className='hover:bg-accent flex flex-col rounded-md px-2 py-1.5 text-left text-sm'
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => {
+                              setEditTask((current) => ({
+                                ...current,
+                                owner: member.name,
+                                ownerId: member.id
+                              }));
+                              setIsEditOwnerOpen(false);
+                              editOwnerInputRef.current?.focus();
+                            }}
+                          >
+                            <span className='font-medium'>{member.name}</span>
+                            {member.role ? (
+                              <span className='text-muted-foreground text-xs'>
+                                {member.role}
+                              </span>
+                            ) : null}
+                          </button>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  )}
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className='grid gap-2 sm:grid-cols-2'>
+              <Select
+                value={editTask.priority}
+                disabled={isSavingEdit}
+                onValueChange={(value) =>
+                  setEditTask((current) => ({
+                    ...current,
+                    priority: value
+                  }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder='Prioridade' />
+                </SelectTrigger>
+                <SelectContent>
+                  {priorityOptions.map((priority) => (
+                    <SelectItem key={priority} value={priority}>
+                      {priority}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={editTask.status}
+                disabled={isSavingEdit}
+                onValueChange={(value) =>
+                  setEditTask((current) => ({
+                    ...current,
+                    status: value
+                  }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder='Status' />
+                </SelectTrigger>
+                <SelectContent>
+                  {statusOptions.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {status}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type='button'
+              variant='outline'
+              onClick={() => setIsTaskModalOpen(false)}
+            >
+              Fechar
+            </Button>
+            {activeTask?.projectId ? (
+              <Button asChild type='button' variant='secondary'>
+                <Link
+                  href={`/dashboard/acompanhamento/projetos/${activeTask.projectId}`}
+                >
+                  Abrir projeto
+                </Link>
+              </Button>
+            ) : null}
+            <Button
+              type='button'
+              onClick={handleUpdateTask}
+              disabled={isSavingEdit}
+            >
+              {isSavingEdit ? 'Salvando...' : 'Salvar alteracoes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PageContainer>
   );
 }

@@ -1,0 +1,69 @@
+{
+  "pieCharts": [
+    {
+      "title": "Automacao",
+      "caption": "Faturamento por setor",
+      "centerLabel": "Faturamento",
+      "config": {
+        "domotica": { "label": "Domotica", "color": "var(--primary)" },
+        "industrial": { "label": "Industrial", "color": "var(--primary)" },
+        "residencial": { "label": "Residencial", "color": "var(--primary)" }
+      },
+      "data": [
+        { "name": "domotica", "value": 42 },
+        { "name": "industrial", "value": 33 },
+        { "name": "residencial", "value": 25 }
+      ]
+    },
+    {
+      "title": "Eletrica",
+      "caption": "Participacao por setor",
+      "centerLabel": "Setores",
+      "config": {
+        "comercial": { "label": "Comercial", "color": "var(--primary)" },
+        "infraestrutura": {
+          "label": "Infraestrutura",
+          "color": "var(--primary)"
+        },
+        "manutencao": { "label": "Manutencao", "color": "var(--primary)" }
+      },
+      "data": [
+        { "name": "comercial", "value": 38 },
+        { "name": "infraestrutura", "value": 29 },
+        { "name": "manutencao", "value": 33 }
+      ]
+    },
+    {
+      "title": "Geral",
+      "caption": "Automacao vs Eletrica",
+      "centerLabel": "Total",
+      "config": {
+        "automacao": { "label": "Automacao", "color": "var(--primary)" },
+        "eletrica": { "label": "Eletrica", "color": "var(--primary)" }
+      },
+      "data": [
+        { "name": "automacao", "value": 54 },
+        { "name": "eletrica", "value": 46 }
+      ]
+    }
+  ],
+  "goal": {
+    "title": "Meta vs Faturamento",
+    "description": "Faturamento mes a mes",
+    "config": {
+      "meta": { "label": "Meta", "color": "rgb(16 185 129)" },
+      "faturamento": {
+        "label": "Faturamento",
+        "color": "rgb(59 130 246)"
+      }
+    },
+    "data": [
+      { "month": "Jan", "meta": 120, "faturamento": 98 },
+      { "month": "Fev", "meta": 120, "faturamento": 110 },
+      { "month": "Mar", "meta": 120, "faturamento": 105 },
+      { "month": "Abr", "meta": 120, "faturamento": 130 },
+      { "month": "Mai", "meta": 120, "faturamento": 118 },
+      { "month": "Jun", "meta": 120, "faturamento": 142 }
+    ]
+  }
+}

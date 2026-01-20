@@ -1,0 +1,147 @@
+{
+  "projects": [
+    {
+      "id": "atlas",
+      "name": "Projeto Atlas",
+      "status": "Em andamento",
+      "updated": "ha 2 dias",
+      "health": "Estavel",
+      "scope": "Automacao"
+    },
+    {
+      "id": "orion",
+      "name": "Projeto Orion",
+      "status": "Revisao",
+      "updated": "ha 5 horas",
+      "health": "Atencao",
+      "scope": "Eletrica"
+    },
+    {
+      "id": "lumen",
+      "name": "Projeto Lumen",
+      "status": "Planejamento",
+      "updated": "ha 1 dia",
+      "health": "Ok",
+      "scope": "Automacao"
+    },
+    {
+      "id": "nimbus",
+      "name": "Projeto Nimbus",
+      "status": "Execucao",
+      "updated": "ha 3 dias",
+      "health": "Estavel",
+      "scope": "Eletrica"
+    },
+    {
+      "id": "nova",
+      "name": "Projeto Nova",
+      "status": "Validacao",
+      "updated": "ha 8 horas",
+      "health": "Atencao",
+      "scope": "Automacao"
+    },
+    {
+      "id": "saga",
+      "name": "Projeto Saga",
+      "status": "Execucao",
+      "updated": "ha 2 horas",
+      "health": "Ok",
+      "scope": "Eletrica"
+    }
+  ],
+  "members": [
+    {
+      "id": "ana-costa",
+      "name": "Ana Costa",
+      "role": "Designer",
+      "activity": "Atualizou prototipos",
+      "status": "online"
+    },
+    {
+      "id": "carlos-souza",
+      "name": "Carlos Souza",
+      "role": "Frontend",
+      "activity": "Finalizou componentes",
+      "status": "away"
+    },
+    {
+      "id": "bruno-lima",
+      "name": "Bruno Lima",
+      "role": "Backend",
+      "activity": "Revisou endpoints",
+      "status": "online"
+    },
+    {
+      "id": "marina-silva",
+      "name": "Marina Silva",
+      "role": "QA",
+      "activity": "Executou testes",
+      "status": "offline"
+    },
+    {
+      "id": "paulo-melo",
+      "name": "Paulo Melo",
+      "role": "PM",
+      "activity": "Atualizou cronograma",
+      "status": "online"
+    },
+    {
+      "id": "renata-alves",
+      "name": "Renata Alves",
+      "role": "UX",
+      "activity": "Ajustou fluxos",
+      "status": "away"
+    }
+  ],
+  "alerts": [
+    {
+      "id": "alert-1",
+      "title": "API instavel",
+      "detail": "Picos de erro no servico de pedidos",
+      "level": "alto",
+      "time": "ha 10 min"
+    },
+    {
+      "id": "alert-2",
+      "title": "Fila de emails",
+      "detail": "Processamento acima do esperado",
+      "level": "medio",
+      "time": "ha 45 min"
+    },
+    {
+      "id": "alert-3",
+      "title": "Deploy pendente",
+      "detail": "Aguardando aprovacao do time",
+      "level": "baixo",
+      "time": "ha 2 horas"
+    }
+  ],
+  "statusOptions": [
+    "Todos",
+    "Em andamento",
+    "Revisao",
+    "Planejamento",
+    "Execucao",
+    "Validacao"
+  ],
+  "scopeOptions": ["Geral", "Automacao", "Eletrica"],
+  "pieStats": {
+    "title": "Saude dos projetos",
+    "caption": "Distribuicao por status",
+    "centerLabel": "Projetos",
+    "data": [
+      { "name": "em-andamento", "value": 8 },
+      { "name": "planejamento", "value": 4 },
+      { "name": "execucao", "value": 6 },
+      { "name": "validacao", "value": 3 },
+      { "name": "revisao", "value": 2 }
+    ],
+    "config": {
+      "em-andamento": { "label": "Em andamento", "color": "var(--primary)" },
+      "planejamento": { "label": "Planejamento", "color": "var(--primary)" },
+      "execucao": { "label": "Execucao", "color": "var(--primary)" },
+      "validacao": { "label": "Validacao", "color": "var(--primary)" },
+      "revisao": { "label": "Revisao", "color": "var(--primary)" }
+    }
+  }
+}

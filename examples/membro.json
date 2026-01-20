@@ -1,0 +1,77 @@
+{
+  "member": {
+    "id": "ana-costa",
+    "name": "Ana Costa",
+    "email": "ana.costa@exemplo.com",
+    "sector": "Design",
+    "cpf": "123.456.789-00",
+    "role": "Designer"
+  },
+  "tasks": [
+    {
+      "id": "task-1",
+      "title": "Revisar backlog semanal",
+      "due": "Hoje",
+      "status": "Em andamento",
+      "priority": "Alta"
+    },
+    {
+      "id": "task-2",
+      "title": "Atualizar checklist de QA",
+      "due": "Amanha",
+      "status": "Planejado",
+      "priority": "Media"
+    },
+    {
+      "id": "task-3",
+      "title": "Alinhar dependencias do time",
+      "due": "Sexta",
+      "status": "Em andamento",
+      "priority": "Baixa"
+    },
+    {
+      "id": "task-4",
+      "title": "Revisar entregas do sprint",
+      "due": "Segunda",
+      "status": "Bloqueado",
+      "priority": "Alta"
+    },
+    {
+      "id": "task-5",
+      "title": "Validar wireframes",
+      "due": "Quarta",
+      "status": "Planejado",
+      "priority": "Media"
+    }
+  ],
+  "alerts": [
+    {
+      "id": "alert-1",
+      "title": "Entrega proxima",
+      "detail": "Revisar prototipos ate sexta-feira",
+      "level": "alto",
+      "time": "ha 2 horas"
+    },
+    {
+      "id": "alert-2",
+      "title": "Pendencia de aprovacao",
+      "detail": "Feedback do cliente pendente",
+      "level": "medio",
+      "time": "ha 5 horas"
+    },
+    {
+      "id": "alert-3",
+      "title": "Reuniao marcada",
+      "detail": "Daily com engenharia amanha",
+      "level": "baixo",
+      "time": "ha 1 dia"
+    },
+    {
+      "id": "alert-4",
+      "title": "Ajuste urgente",
+      "detail": "Atualizar layout da home",
+      "level": "alto",
+      "time": "ha 30 min"
+    }
+  ]
+}
