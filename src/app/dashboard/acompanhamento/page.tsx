@@ -62,6 +62,8 @@ type Project = {
   updated: string;
   health: string;
   scope: string;
+  area?: string;
+  tipo?: string;
   client?: string;
   manager?: string;
   managerId?: string;
@@ -165,6 +167,9 @@ const projectStatusOptions = statusOptions.filter(
   (status) => status !== 'Todos'
 );
 const healthOptions = ['Estavel', 'Atencao', 'Ok'];
+const areaOptions = ['Automacao', 'Eletrica'];
+const tiposAutomacao = ['Domotica', 'Industrial'];
+const tiposEletrica = ['Projeto Eletrico', 'Solar'];
 const defaultMemberStatus = 'online';
 const roleOptions = [
   'Consultor',
@@ -199,6 +204,8 @@ type ProjectFormState = {
   status: string;
   health: string;
   scope: string;
+  area: string;
+  tipo: string;
   client: string;
   manager: string;
   managerId: string;
@@ -236,6 +243,8 @@ export default function AcompanhamentoPage() {
     status: projectStatusOptions[0],
     health: healthOptions[2],
     scope: scopeOptions[1],
+    area: areaOptions[0],
+    tipo: tiposAutomacao[0],
     client: '',
     manager: '',
     managerId: '',
@@ -456,6 +465,8 @@ export default function AcompanhamentoPage() {
       status: newProject.status,
       health: newProject.health,
       scope: newProject.scope,
+      area: newProject.area,
+      tipo: newProject.tipo,
       client: newProject.client.trim(),
       manager: managerName,
       managerId: newProject.managerId,
@@ -481,6 +492,8 @@ export default function AcompanhamentoPage() {
           updated: projectPayload.updatedLabel,
           health: projectPayload.health,
           scope: projectPayload.scope,
+          area: projectPayload.area,
+          tipo: projectPayload.tipo,
           client: projectPayload.client,
           manager: projectPayload.manager,
           managerId: projectPayload.managerId,
@@ -496,6 +509,8 @@ export default function AcompanhamentoPage() {
         status: projectStatusOptions[0],
         health: healthOptions[2],
         scope: scopeOptions[1],
+        area: areaOptions[0],
+        tipo: tiposAutomacao[0],
         client: '',
         manager: leadershipMembers[0]?.name ?? '',
         managerId: leadershipMembers[0]?.id ?? '',
@@ -784,6 +799,52 @@ export default function AcompanhamentoPage() {
                                       {scope}
                                     </SelectItem>
                                   ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className='grid gap-3 sm:grid-cols-2'>
+                            <Select
+                              value={newProject.area}
+                              disabled={isSaving}
+                              onValueChange={(value) => {
+                                const novosTipos = value === 'Automacao' ? tiposAutomacao : tiposEletrica;
+                                setNewProject((current) => ({
+                                  ...current,
+                                  area: value,
+                                  tipo: novosTipos[0]
+                                }));
+                              }}
+                            >
+                              <SelectTrigger aria-label='Area do projeto'>
+                                <SelectValue placeholder='Area' />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {areaOptions.map((area) => (
+                                  <SelectItem key={area} value={area}>
+                                    {area}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Select
+                              value={newProject.tipo}
+                              disabled={isSaving}
+                              onValueChange={(value) =>
+                                setNewProject((current) => ({
+                                  ...current,
+                                  tipo: value
+                                }))
+                              }
+                            >
+                              <SelectTrigger aria-label='Tipo do projeto'>
+                                <SelectValue placeholder='Tipo' />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {(newProject.area === 'Automacao' ? tiposAutomacao : tiposEletrica).map((tipo) => (
+                                  <SelectItem key={tipo} value={tipo}>
+                                    {tipo}
+                                  </SelectItem>
+                                ))}
                               </SelectContent>
                             </Select>
                           </div>
