@@ -53,6 +53,7 @@ type MemberTask = {
   activityId?: string;
   projectId?: string;
   projectName?: string;
+  source?: 'project' | 'agenda';
   title: string;
   due: string;
   status: string;
@@ -60,6 +61,15 @@ type MemberTask = {
   owner?: string;
   ownerId?: string;
   description?: string;
+  updates?: ActivityUpdate[];
+};
+
+type ActivityUpdate = {
+  id: string;
+  author: string;
+  authorId?: string;
+  note: string;
+  time: string;
 };
 
 type MemberAlert = {
@@ -196,7 +206,8 @@ export default function MembroPage() {
     cpf: '',
     role: ''
   });
-  const [memberTasks, setMemberTasks] = React.useState<MemberTask[]>([]);
+  const [projectTasks, setProjectTasks] = React.useState<MemberTask[]>([]);
+  const [agendaTasks, setAgendaTasks] = React.useState<MemberTask[]>([]);
   const [memberAlerts, setMemberAlerts] = React.useState<MemberAlert[]>(alerts);
   const [activeTask, setActiveTask] = React.useState<MemberTask | null>(null);
   const [isTaskModalOpen, setIsTaskModalOpen] = React.useState(false);
@@ -215,13 +226,17 @@ export default function MembroPage() {
     status: statusOptions[1],
     priority: priorityOptions[1]
   });
+  const allTasks = React.useMemo(
+    () => [...agendaTasks, ...projectTasks],
+    [agendaTasks, projectTasks]
+  );
   const selectedDayLabel = selectedDay ? format(selectedDay, 'dd/MM/yyyy') : '';
   const tasksForDay = selectedDayLabel
-    ? memberTasks.filter((task) => task.due === selectedDayLabel)
+    ? allTasks.filter((task) => task.due === selectedDayLabel)
     : [];
   const priorityByDate = React.useMemo(() => {
     const map = new Map<string, string>();
-    memberTasks.forEach((task) => {
+    allTasks.forEach((task) => {
       const parsed = parseDueDate(task.due);
       if (!parsed) {
         return;
@@ -236,7 +251,7 @@ export default function MembroPage() {
       }
     });
     return map;
-  }, [memberTasks]);
+  }, [allTasks]);
   const calendarIndicators = React.useMemo(() => {
     const high: Date[] = [];
     const medium: Date[] = [];
@@ -291,6 +306,7 @@ export default function MembroPage() {
         const data = snapshot.data() as Partial<MemberInfo> & {
           tasks?: MemberTask[];
           alerts?: MemberAlert[];
+          agendaTasks?: MemberTask[];
         };
 
         setMemberInfo({
@@ -301,6 +317,16 @@ export default function MembroPage() {
           role: data.role ?? ''
         });
 
+        if (Array.isArray(data.agendaTasks)) {
+          setAgendaTasks(
+            data.agendaTasks.map((task) => ({
+              ...task,
+              source: 'agenda'
+            }))
+          );
+        } else {
+          setAgendaTasks([]);
+        }
         if (Array.isArray(data.tasks)) {
           setMemberTasks(data.tasks);
         }
@@ -414,6 +440,7 @@ export default function MembroPage() {
               activityId: activity.id,
               projectId: docSnapshot.id,
               projectName: data.name ?? 'Projeto',
+              source: 'project',
               title: activity.name ?? 'Tarefa',
               due: activity.dueAt ?? '',
               status: activity.status ?? 'Planejado',
@@ -425,7 +452,7 @@ export default function MembroPage() {
           });
         });
 
-        setMemberTasks(tasksFromDb);
+        setProjectTasks(tasksFromDb);
       } catch (error) {
         console.error('Falha ao carregar tarefas:', error);
         toast.error('Nao foi possivel carregar tarefas.');
@@ -508,7 +535,7 @@ export default function MembroPage() {
         updatedAt: serverTimestamp()
       });
 
-      setMemberTasks((current) =>
+      setProjectTasks((current) =>
         current.map((task) =>
           task.id === activeTask.id
             ? {
@@ -553,7 +580,7 @@ export default function MembroPage() {
       pageDescription='Tarefas, calendario e alertas'
     >
       <div className='flex flex-1 flex-col space-y-4'>
-        <div className='*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs lg:grid-cols-2'>
+        <div className='*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 *:data-[slot=card]:bg-linear-to-t *:data-[slot=card]:shadow-xs lg:grid-cols-2'>
           <Card className='h-full'>
             <CardHeader>
               <CardTitle>Lista de tarefas</CardTitle>
@@ -562,12 +589,12 @@ export default function MembroPage() {
             <CardContent>
               <ScrollArea className='h-56 pr-3'>
                 <div className='space-y-2'>
-                  {memberTasks.length === 0 ? (
+                  {allTasks.length === 0 ? (
                     <div className='text-muted-foreground text-sm'>
                       Nenhuma tarefa encontrada.
                     </div>
                   ) : (
-                    memberTasks.map((task) => (
+                    allTasks.map((task) => (
                       <button
                         key={task.id}
                         type='button'

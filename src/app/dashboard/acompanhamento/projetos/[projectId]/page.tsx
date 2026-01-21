@@ -105,6 +105,12 @@ type MemberOption = {
   role?: string;
 };
 
+type ConflictingTask = {
+  title: string;
+  due: string;
+  source: string;
+};
+
 const formatDateLabel = (value: string) => {
   if (!value) {
     return '';
@@ -128,11 +134,12 @@ const toInputDate = (value: string) => {
   return `${year}-${month}-${day}`;
 };
 
-const formatProjectValue = (value?: string) => {
+const formatProjectValue = (value?: string | number) => {
   if (!value) {
     return 'R$ --';
   }
-  const trimmed = value.trim();
+  const stringValue = typeof value === 'number' ? value.toString() : value;
+  const trimmed = stringValue.trim();
   if (!trimmed) {
     return 'R$ --';
   }
@@ -189,6 +196,13 @@ export default function ProjetoPage() {
     status: statusOptions[1],
     priority: priorityOptions[1]
   });
+  const [conflictWarning, setConflictWarning] = React.useState<{
+    show: boolean;
+    message: string;
+    tasksCount: number;
+    tasks: ConflictingTask[];
+  }>({ show: false, message: '', tasksCount: 0, tasks: [] });
+  const [pendingActivity, setPendingActivity] = React.useState<Activity | null>(null);
   const [editActivity, setEditActivity] = React.useState({
     name: '',
     description: '',
@@ -359,6 +373,119 @@ export default function ProjetoPage() {
     }, 120);
   }, []);
 
+  const checkMemberConflicts = async (ownerId: string, dueDate: string): Promise<{ hasConflict: boolean; message: string; tasksCount: number; tasks: ConflictingTask[] }> => {
+    if (!firebaseDb || !ownerId || !dueDate) {
+      return { hasConflict: false, message: '', tasksCount: 0, tasks: [] };
+    }
+
+    try {
+      const dueDateTime = new Date(`${dueDate}T00:00:00`);
+      if (isNaN(dueDateTime.getTime())) {
+        return { hasConflict: false, message: '', tasksCount: 0, tasks: [] };
+      }
+
+      const now = new Date();
+      const next7Days = new Date(now);
+      next7Days.setDate(now.getDate() + 7);
+
+      const dueMinus3 = new Date(dueDateTime);
+      dueMinus3.setDate(dueDateTime.getDate() - 3);
+      const duePlus3 = new Date(dueDateTime);
+      duePlus3.setDate(dueDateTime.getDate() + 3);
+
+      // Carregar tarefas da agenda do membro
+      const memberDoc = await getDoc(doc(firebaseDb, 'members', ownerId));
+      const agendaTasks: Array<{ title: string; due: string; source: string }> = [];
+      if (memberDoc.exists()) {
+        const memberData = memberDoc.data() as { agendaTasks?: Array<{ title: string; due: string }> };
+        if (Array.isArray(memberData.agendaTasks)) {
+          agendaTasks.push(...memberData.agendaTasks.map(task => ({
+            title: task.title,
+            due: task.due,
+            source: 'Agenda pessoal'
+          })));
+        }
+      }
+
+      // Carregar tarefas de projetos
+      const projectsSnapshot = await getDocs(collection(firebaseDb, 'projects'));
+      const projectTasks: Array<{ title: string; due: string; source: string }> = [];
+      projectsSnapshot.docs.forEach((docSnapshot) => {
+        const data = docSnapshot.data() as { name?: string; Activities?: Array<{ ownerId?: string; name?: string; dueAt?: string }> };
+        if (Array.isArray(data.Activities)) {
+          data.Activities.forEach((activity) => {
+            if (activity.ownerId === ownerId && activity.dueAt) {
+              projectTasks.push({ 
+                title: activity.name || 'Tarefa',
+                due: activity.dueAt,
+                source: `Projeto: ${data.name || 'Sem nome'}`
+              });
+            }
+          });
+        }
+      });
+
+      const allTasks = [...agendaTasks, ...projectTasks];
+      const tasksNext7Days: ConflictingTask[] = [];
+      const tasksNearDueDate: ConflictingTask[] = [];
+      const allConflictingTasks: ConflictingTask[] = [];
+
+      allTasks.forEach((task) => {
+        const taskDate = parseDateFromBR(task.due);
+        if (!taskDate) return;
+
+        const isNext7Days = taskDate >= now && taskDate <= next7Days;
+        const isNearDueDate = taskDate >= dueMinus3 && taskDate <= duePlus3;
+
+        if (isNext7Days || isNearDueDate) {
+          const conflictTask: ConflictingTask = {
+            title: task.title,
+            due: task.due,
+            source: task.source
+          };
+          allConflictingTasks.push(conflictTask);
+
+          if (isNext7Days) tasksNext7Days.push(conflictTask);
+          if (isNearDueDate) tasksNearDueDate.push(conflictTask);
+        }
+      });
+
+      const totalConflicts = allConflictingTasks.length;
+      
+      if (totalConflicts > 0) {
+        let message = '';
+        
+        if (tasksNext7Days.length > 0 && tasksNearDueDate.length > 0) {
+          message = `O responsável possui ${tasksNext7Days.length} tarefa(s) nos próximos 7 dias e ${tasksNearDueDate.length} tarefa(s) próximas ao prazo desta atividade (±3 dias).`;
+        } else if (tasksNext7Days.length > 0) {
+          message = `O responsável possui ${tasksNext7Days.length} tarefa(s) nos próximos 7 dias.`;
+        } else {
+          message = `O responsável possui ${tasksNearDueDate.length} tarefa(s) próximas ao prazo desta atividade (±3 dias).`;
+        }
+        
+        return { hasConflict: true, message, tasksCount: totalConflicts, tasks: allConflictingTasks };
+      }
+
+      return { hasConflict: false, message: '', tasksCount: 0, tasks: [] };
+    } catch (error) {
+      console.error('Erro ao verificar conflitos:', error);
+      return { hasConflict: false, message: '', tasksCount: 0, tasks: [] };
+    }
+  };
+
+  const parseDateFromBR = (dateStr: string): Date | null => {
+    if (!dateStr) return null;
+    const parts = dateStr.split('/');
+    if (parts.length !== 3) return null;
+    const [day, month, year] = parts;
+    const date = new Date(
+      parseInt(year, 10),
+      parseInt(month, 10) - 1,
+      parseInt(day, 10)
+    );
+    return isNaN(date.getTime()) ? null : date;
+  };
+
   const handleCreateActivity = async () => {
     if (!newActivity.name.trim()) {
       toast.error('Informe o nome da atividade.');
@@ -396,6 +523,27 @@ export default function ProjetoPage() {
       updates: []
     };
 
+    // Verificar conflitos se tiver ownerId
+    if (newActivity.ownerId && newActivity.dueDate) {
+      const conflict = await checkMemberConflicts(newActivity.ownerId, newActivity.dueDate);
+      if (conflict.hasConflict) {
+        setPendingActivity(activityPayload);
+        setConflictWarning({
+          show: true,
+          message: conflict.message,
+          tasksCount: conflict.tasksCount,
+          tasks: conflict.tasks
+        });
+        return;
+      }
+    }
+
+    await saveActivity(activityPayload);
+  };
+
+  const saveActivity = async (activityPayload: Activity) => {
+    if (!projectId || !firebaseDb) return;
+    
     setIsSavingActivity(true);
     try {
       await updateDoc(doc(firebaseDb, 'projects', projectId), {
@@ -420,6 +568,19 @@ export default function ProjetoPage() {
     } finally {
       setIsSavingActivity(false);
     }
+  };
+
+  const handleConfirmWithConflict = async () => {
+    if (!pendingActivity) return;
+    
+    setConflictWarning({ show: false, message: '', tasksCount: 0, tasks: [] });
+    await saveActivity(pendingActivity);
+    setPendingActivity(null);
+  };
+
+  const handleCancelConflict = () => {
+    setConflictWarning({ show: false, message: '', tasksCount: 0, tasks: [] });
+    setPendingActivity(null);
   };
 
   const handleEditOpen = () => {
@@ -1043,6 +1204,57 @@ export default function ProjetoPage() {
               disabled={isSavingEdit}
             >
               {isSavingEdit ? 'Salvando...' : 'Salvar alteracoes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de confirmação de conflito */}
+      <Dialog open={conflictWarning.show} onOpenChange={(open) => !open && handleCancelConflict()}>
+        <DialogContent className='max-w-2xl'>
+          <DialogHeader>
+            <DialogTitle>Aviso: Responsável com tarefas próximas</DialogTitle>
+            <DialogDescription>
+              {conflictWarning.message}
+            </DialogDescription>
+          </DialogHeader>
+          <div className='py-4'>
+            <div className='mb-4'>
+              <p className='text-sm font-medium mb-2'>Tarefas conflitantes:</p>
+              <ScrollArea className='h-48 rounded-md border'>
+                <div className='p-3 space-y-2'>
+                  {conflictWarning.tasks.map((task, index) => (
+                    <div key={index} className='rounded-md border p-3 text-sm'>
+                      <div className='font-medium'>{task.title}</div>
+                      <div className='text-muted-foreground text-xs mt-1'>
+                        Prazo: {task.due}
+                      </div>
+                      <div className='text-muted-foreground text-xs'>
+                        {task.source}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+            <p className='text-sm text-muted-foreground'>
+              Deseja continuar e criar esta atividade mesmo assim?
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              type='button'
+              variant='outline'
+              onClick={handleCancelConflict}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type='button'
+              onClick={handleConfirmWithConflict}
+              disabled={isSavingActivity}
+            >
+              {isSavingActivity ? 'Salvando...' : 'Confirmar e criar'}
             </Button>
           </DialogFooter>
         </DialogContent>
