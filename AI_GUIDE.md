@@ -34,6 +34,88 @@ Keep it updated when structure or conventions change.
 - Project detail (`src/app/dashboard/acompanhamento/projetos/[projectId]/page.tsx`)
   reads `Activities` from Firestore and writes updates back to the same field.
 
+### Firestore Schema
+
+#### Collection: `projects`
+```typescript
+{
+  id: string;                    // Document ID
+  name: string;                  // Nome do projeto
+  status: string;                // 'Em andamento' | 'Revisao' | 'Planejamento' | 'Execucao' | 'Validacao'
+  health: string;                // 'Estavel' | 'Atencao' | 'Ok'
+  area: string;                  // 'Automacao' | 'Eletrica'
+  tipo: string;                  // Para Automacao: 'Domotica' | 'Industrial'
+                                 // Para Eletrica: 'Projeto Eletrico' | 'Solar'
+  client: string;                // Nome do cliente
+  manager: string;               // Nome do gerente (referencia membro)
+  managerId: string;             // ID do membro gerente
+  start: Timestamp | null;       // Data de inicio do projeto
+  next: string;                  // Proxima etapa/marco
+  value: number;                 // Valor do projeto em reais
+  updatedLabel?: string;         // Label de atualizacao ('agora', etc)
+  createdAt: Timestamp;          // Data de criacao
+  updatedAt: Timestamp;          // Data de ultima atualizacao
+  Activities?: Array<{           // Lista de atividades do projeto
+    id: string;                  // ID unico da atividade
+    name: string;                // Nome da atividade
+    issuedAt: string;            // Data de emissao (formato DD/MM/YYYY)
+    dueAt: string;               // Prazo (formato DD/MM/YYYY)
+    owner: string;               // Nome do responsavel
+    ownerId?: string;            // ID do membro responsavel
+    status: string;              // 'Planejado' | 'Em andamento' | 'Bloqueado' | 'Concluido'
+    priority: string;            // 'Alta' | 'Media' | 'Baixa'
+    description: string;         // Descricao da atividade
+    updates?: Array<{            // Historico de atualizacoes
+      id: string;                // ID da atualizacao
+      author: string;            // Nome do autor
+      authorId?: string;         // ID do autor
+      note: string;              // Nota/comentario
+      time: string;              // Timestamp (formato DD/MM/YYYY HH:mm)
+    }>;
+  }>;
+}
+```
+
+#### Collection: `members`
+```typescript
+{
+  id: string;                    // Document ID
+  name: string;                  // Nome completo
+  email: string;                 // Email (formato: nome@wattconsultoria.com.br)
+  sector: string;                // 'Automacao' | 'Eletrica' | 'Comercial' | 'Marketing' | 'Institucional' | 'Executivo'
+  cpf: string;                   // CPF do membro
+  role: string;                  // 'Consultor' | 'Gerente' | 'Diretor' | 'Assessor' | 'Presidente'
+  activity: string;              // Atividade atual
+  status: string;                // 'online' | 'away' | 'offline'
+  isLeadership: boolean;         // true se role != 'Consultor', false caso contrario
+  createdAt: Timestamp;          // Data de criacao
+  updatedAt: Timestamp;          // Data de ultima atualizacao
+  agendaTasks?: Array<{          // Tarefas da agenda pessoal
+    id: string;                  // ID unico da tarefa
+    source: 'agenda';            // Sempre 'agenda' para tarefas pessoais
+    title: string;               // Titulo da tarefa
+    due: string;                 // Prazo (formato DD/MM/YYYY)
+    status: string;              // 'Planejado' | 'Em andamento' | 'Bloqueado' | 'Concluido'
+    priority: string;            // 'Alta' | 'Media' | 'Baixa'
+    description: string;         // Descricao da tarefa
+    updates?: Array<{            // Historico (mesmo formato de Activities)
+      id: string;
+      author: string;
+      authorId?: string;
+      note: string;
+      time: string;
+    }>;
+  }>;
+  alerts?: Array<{               // Alertas do membro
+    id: string;                  // ID do alerta
+    title: string;               // Titulo do alerta
+    detail: string;              // Detalhes
+    level: string;               // 'alto' | 'medio' | 'baixo'
+    time: string;                // Tempo relativo ('ha 2 horas', etc)
+  }>;
+}
+```
+
 ## Acompanhamento (custom)
 - List page: `src/app/dashboard/acompanhamento/page.tsx`.
   - 2x2 grid with cards (projects, pie chart, members, alerts).
