@@ -13,10 +13,7 @@ const baseConfig: NextConfig = {
       }
     ]
   },
-  transpilePackages: ['geist'],
-  turbopack: {
-    root: __dirname
-  }
+  transpilePackages: ['geist']
 };
 
 const withSerwistConfig = withSerwist({
