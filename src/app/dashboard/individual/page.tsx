@@ -900,18 +900,19 @@ export default function IndividualPage() {
                             </AccordionTrigger>
                             <AccordionContent>
                               <div className='space-y-2 pt-2'>
+                                <div className='flex justify-end'>
+                                  <Button
+                                    onClick={() => handleTaskClick(task)}
+                                    size='sm'
+                                  >
+                                    Detalhes
+                                  </Button>
+                                </div>
                                 {task.description && (
-                                  <p className='text-sm text-muted-foreground'>
+                                  <p className='text-sm text-muted-foreground text-justify break-all md:break-words'>
                                     {task.description}
                                   </p>
                                 )}
-                                <Button
-                                  onClick={() => handleTaskClick(task)}
-                                  className='w-full'
-                                  size='sm'
-                                >
-                                  Ver detalhes
-                                </Button>
                               </div>
                             </AccordionContent>
                           </AccordionItem>
@@ -1296,7 +1297,7 @@ export default function IndividualPage() {
                               Prazo: {task.due}
                             </span>
                             {task.description ? (
-                              <span className='text-muted-foreground text-xs line-clamp-2 break-all'>
+                              <span className='text-muted-foreground text-justify text-xs line-clamp-2 break-all'>
                                 {task.description}
                               </span>
                             ) : null}
@@ -1690,31 +1691,43 @@ export default function IndividualPage() {
               </div>
             </div>
 
-            <div className='rounded-lg border p-3 text-sm'>
-              <div className='text-muted-foreground text-xs mb-1'>Descrição</div>
-              <div className='text-sm break-all'>
+            <details className='rounded-lg border p-3 text-sm'>
+              <summary className='cursor-pointer text-sm font-medium'>Descrição</summary>
+              <div className='mt-2 text-sm text-justify break-all whitespace-pre-wrap'>
                 {activeTask?.description?.trim() || 'Sem descrição'}
               </div>
-            </div>
+            </details>
             
-            <div className='space-y-2'>
-              <label className='text-sm font-medium'>Status</label>
-              <Select
-                value={editStatus}
+            <div className='grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3'>
+              <div className='space-y-2'>
+                <label className='text-sm font-medium'>Status</label>
+                <Select
+                  value={editStatus}
+                  disabled={isSavingEdit}
+                  onValueChange={setEditStatus}
+                >
+                  <SelectTrigger className='h-11'>
+                    <SelectValue placeholder='Status' />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {statusOptions.map((status) => (
+                      <SelectItem key={status} value={status}>
+                        {status}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button
+                type='button'
+                onClick={handleUpdateTask}
                 disabled={isSavingEdit}
-                onValueChange={setEditStatus}
+                className='h-11 w-11 rounded-md p-0'
+                size='icon'
+                aria-label='Salvar atualização'
               >
-                <SelectTrigger className='h-11'>
-                  <SelectValue placeholder='Status' />
-                </SelectTrigger>
-                <SelectContent>
-                  {statusOptions.map((status) => (
-                    <SelectItem key={status} value={status}>
-                      {status}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                +
+              </Button>
             </div>
             
             <div className='space-y-2'>
@@ -1742,7 +1755,7 @@ export default function IndividualPage() {
                           {update.time}
                         </div>
                       </div>
-                      <div className='text-sm'>
+                      <div className='text-sm text-justify pr-3'>
                         {update.note}
                       </div>
                     </div>
@@ -1755,16 +1768,8 @@ export default function IndividualPage() {
               </div>
             </div>
           </div>
-          <DialogFooter className='flex-col gap-2 sm:flex-row sm:gap-0'>
-            <Button
-              type='button'
-              variant='outline'
-              onClick={() => setIsTaskModalOpen(false)}
-              className='w-full sm:w-auto'
-            >
-              Fechar
-            </Button>
-            {activeTask?.projectId ? (
+          {activeTask?.projectId ? (
+            <DialogFooter className='flex-col gap-2 sm:flex-row sm:gap-0'>
               <Button asChild type='button' variant='secondary' className='w-full sm:w-auto'>
                 <Link
                   href={`/dashboard/acompanhamento/projetos/${activeTask.projectId}`}
@@ -1772,16 +1777,8 @@ export default function IndividualPage() {
                   Abrir projeto
                 </Link>
               </Button>
-            ) : null}
-            <Button
-              type='button'
-              onClick={handleUpdateTask}
-              disabled={isSavingEdit}
-              className='w-full sm:w-auto'
-            >
-              {isSavingEdit ? 'Salvando...' : 'Salvar atualização'}
-            </Button>
-          </DialogFooter>
+            </DialogFooter>
+          ) : null}
         </DialogContent>
       </Dialog>
     </PageContainer>
