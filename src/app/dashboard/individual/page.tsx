@@ -16,6 +16,18 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger
+} from '@/components/ui/tabs';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger
+} from '@/components/ui/accordion';
 import { firebaseDb } from '@/lib/firebase/client';
 import {
   collection,
@@ -827,9 +839,419 @@ export default function IndividualPage() {
     <PageContainer
       pageTitle={memberInfo.name || 'Individual'}
       pageDescription='Tarefas, calendario e alertas'
+      hideHeaderOnMobile
     >
-      <div className='flex flex-1 flex-col space-y-4'>
-        <div className='*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 *:data-[slot=card]:bg-linear-to-t *:data-[slot=card]:shadow-xs lg:grid-cols-2'>
+      <div className='flex flex-1 flex-col space-y-3 md:space-y-4'>
+        {/* Mobile Tabs */}
+        <div className='block lg:hidden'>
+          <Tabs defaultValue='tasks' className='w-full'>
+            <TabsList className='grid w-full grid-cols-4 h-auto'>
+              <TabsTrigger value='tasks' className='text-xs py-2'>Tarefas</TabsTrigger>
+              <TabsTrigger value='calendar' className='text-xs py-2'>Calendário</TabsTrigger>
+              <TabsTrigger value='agenda' className='text-xs py-2'>Agenda</TabsTrigger>
+              <TabsTrigger value='ponto' className='text-xs py-2'>Ponto</TabsTrigger>
+            </TabsList>
+
+            {/* Tarefas Tab */}
+            <TabsContent value='tasks' className='mt-3'>
+              <Card>
+                <CardHeader className='pb-3'>
+                  <CardTitle className='text-lg md:text-xl'>Lista de tarefas</CardTitle>
+                  <CardDescription className='text-xs md:text-sm'>Atividades da semana</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className='space-y-2'>
+                    {isProjectTasksLoading ? (
+                      <div className='space-y-2'>
+                        {Array.from({ length: 4 }).map((_, index) => (
+                          <div key={`task-skeleton-${index}`} className='rounded-lg border p-3'>
+                            <Skeleton className='h-4 w-2/3' />
+                            <Skeleton className='mt-2 h-3 w-1/3' />
+                          </div>
+                        ))}
+                      </div>
+                    ) : allTasks.length === 0 ? (
+                      <div className='text-muted-foreground text-sm py-8 text-center'>
+                        Nenhuma tarefa encontrada.
+                      </div>
+                    ) : (
+                      <Accordion type='single' collapsible className='w-full'>
+                        {allTasks.map((task) => (
+                          <AccordionItem key={task.id} value={task.id}>
+                            <AccordionTrigger className='hover:no-underline py-3'>
+                              <div className='flex items-start justify-between gap-2 w-full pr-2'>
+                                <div className='flex flex-col items-start text-left'>
+                                  <span className='text-sm font-medium line-clamp-1'>
+                                    {task.title}
+                                  </span>
+                                  <span className='text-muted-foreground text-xs'>
+                                    {task.due}
+                                  </span>
+                                </div>
+                                <div className='flex flex-col items-end gap-1 flex-shrink-0'>
+                                  <Badge className={`${statusStyles[task.status]} text-[10px] px-1.5 py-0`}>
+                                    {task.status}
+                                  </Badge>
+                                  <Badge className={`${priorityStyles[task.priority]} text-[10px] px-1.5 py-0`}>
+                                    {task.priority}
+                                  </Badge>
+                                </div>
+                              </div>
+                            </AccordionTrigger>
+                            <AccordionContent>
+                              <div className='space-y-2 pt-2'>
+                                {task.description && (
+                                  <p className='text-sm text-muted-foreground'>
+                                    {task.description}
+                                  </p>
+                                )}
+                                <Button
+                                  onClick={() => handleTaskClick(task)}
+                                  className='w-full'
+                                  size='sm'
+                                >
+                                  Ver detalhes
+                                </Button>
+                              </div>
+                            </AccordionContent>
+                          </AccordionItem>
+                        ))}
+                      </Accordion>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Calendar Tab */}
+            <TabsContent value='calendar' className='mt-3'>
+              <Card>
+                <CardHeader className='pb-3'>
+                  <CardTitle className='text-lg md:text-xl'>Calendário</CardTitle>
+                  <CardDescription className='text-xs md:text-sm'>Dias com atividades</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className='space-y-3'>
+                    {isProjectTasksLoading ? (
+                      <Skeleton className='h-80 w-full' />
+                    ) : (
+                      <div className='flex justify-center'>
+                        <Calendar
+                          mode='single'
+                          selected={selectedDay}
+                          onSelect={setSelectedDay}
+                          modifiers={calendarIndicators}
+                          modifiersClassNames={{
+                            highPriority:
+                              "relative after:absolute after:bottom-1 after:left-1/2 after:h-1.5 after:w-1.5 after:-translate-x-1/2 after:rounded-full after:bg-red-500/60 after:content-['']",
+                            mediumPriority:
+                              "relative after:absolute after:bottom-1 after:left-1/2 after:h-1.5 after:w-1.5 after:-translate-x-1/2 after:rounded-full after:bg-amber-500/60 after:content-['']",
+                            lowPriority:
+                              "relative after:absolute after:bottom-1 after:left-1/2 after:h-1.5 after:w-1.5 after:-translate-x-1/2 after:rounded-full after:bg-emerald-500/60 after:content-['']"
+                          }}
+                          className='rounded-md border'
+                        />
+                      </div>
+                    )}
+                    
+                    <div className='rounded-lg border p-3'>
+                      <div className='text-muted-foreground text-xs font-semibold uppercase mb-2'>
+                        Atividades do dia
+                      </div>
+                      <div className='text-sm font-medium mb-3'>
+                        {selectedDayLabel || 'Selecione uma data'}
+                      </div>
+                      <div className='space-y-2'>
+                        {isProjectTasksLoading ? (
+                          <div className='space-y-2'>
+                            {Array.from({ length: 2 }).map((_, index) => (
+                              <div key={`day-skeleton-${index}`} className='rounded-md border p-2'>
+                                <Skeleton className='h-3 w-3/4' />
+                                <Skeleton className='mt-2 h-3 w-1/3' />
+                              </div>
+                            ))}
+                          </div>
+                        ) : tasksForDay.length === 0 ? (
+                          <div className='text-muted-foreground text-sm text-center py-4'>
+                            Nenhuma atividade para este dia.
+                          </div>
+                        ) : (
+                          tasksForDay.map((task) => (
+                            <button
+                              key={task.id}
+                              type='button'
+                              onClick={() => handleTaskClick(task)}
+                              className='hover:bg-accent w-full rounded-lg border p-3 text-left transition-colors active:scale-95'
+                            >
+                              <div className='flex items-start justify-between gap-2'>
+                                <div className='flex flex-col'>
+                                  <span className='text-sm font-medium line-clamp-1'>
+                                    {task.title}
+                                  </span>
+                                  <span className='text-muted-foreground text-xs'>
+                                    {task.due}
+                                  </span>
+                                </div>
+                                <div className='flex flex-col items-end gap-1 flex-shrink-0'>
+                                  <Badge className={`${statusStyles[task.status]} text-[10px] px-1.5`}>
+                                    {task.status}
+                                  </Badge>
+                                  <Badge className={`${priorityStyles[task.priority]} text-[10px] px-1.5`}>
+                                    {task.priority}
+                                  </Badge>
+                                </div>
+                              </div>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Agenda Tab */}
+            <TabsContent value='agenda' className='mt-3'>
+              <Card>
+                <CardHeader className='pb-3'>
+                  <CardTitle className='text-lg md:text-xl'>Agenda</CardTitle>
+                  <CardDescription className='text-xs md:text-sm'>Novo compromisso</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {isMemberLoading ? (
+                    <div className='space-y-3'>
+                      <Skeleton className='h-4 w-1/3' />
+                      <Skeleton className='h-10 w-full' />
+                      <Skeleton className='h-4 w-1/3' />
+                      <Skeleton className='h-10 w-full' />
+                      <Skeleton className='h-4 w-1/3' />
+                      <Skeleton className='h-24 w-full' />
+                    </div>
+                  ) : (
+                    <div className='space-y-3'>
+                      <div className='space-y-2'>
+                        <label className='text-sm font-medium' htmlFor='agendaDate'>
+                          Data
+                        </label>
+                        <Input
+                          id='agendaDate'
+                          type='date'
+                          value={agendaForm.date}
+                          disabled={isSavingAgenda}
+                          onChange={(event) =>
+                            setAgendaForm((current) => ({
+                              ...current,
+                              date: event.target.value
+                            }))
+                          }
+                          className='h-11'
+                        />
+                      </div>
+                      
+                      <div className='space-y-2'>
+                        <label className='text-sm font-medium' htmlFor='agendaTitle'>
+                          Nome da atividade
+                        </label>
+                        <Input
+                          id='agendaTitle'
+                          placeholder='Ex: Visita tecnica'
+                          value={agendaForm.title}
+                          disabled={isSavingAgenda}
+                          onChange={(event) =>
+                            setAgendaForm((current) => ({
+                              ...current,
+                              title: event.target.value
+                            }))
+                          }
+                          className='h-11'
+                        />
+                      </div>
+
+                      <div className='space-y-2'>
+                        <label className='text-sm font-medium' htmlFor='agendaNotes'>
+                          Descrição
+                        </label>
+                        <Textarea
+                          id='agendaNotes'
+                          placeholder='Detalhes do compromisso'
+                          className='min-h-20'
+                          value={agendaForm.description}
+                          disabled={isSavingAgenda}
+                          onChange={(event) =>
+                            setAgendaForm((current) => ({
+                              ...current,
+                              description: event.target.value
+                            }))
+                          }
+                        />
+                      </div>
+
+                      <div className='space-y-2'>
+                        <label className='text-sm font-medium'>Prioridade</label>
+                        <Select
+                          value={agendaForm.priority}
+                          disabled={isSavingAgenda}
+                          onValueChange={(value) =>
+                            setAgendaForm((current) => ({
+                              ...current,
+                              priority: value
+                            }))
+                          }
+                        >
+                          <SelectTrigger className='h-11'>
+                            <SelectValue placeholder='Prioridade' />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {priorityOptions.map((priority) => (
+                              <SelectItem key={priority} value={priority}>
+                                {priority}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className='space-y-2'>
+                        <label className='text-sm font-medium'>Status</label>
+                        <Select
+                          value={agendaForm.status}
+                          disabled={isSavingAgenda}
+                          onValueChange={(value) =>
+                            setAgendaForm((current) => ({
+                              ...current,
+                              status: value
+                            }))
+                          }
+                        >
+                          <SelectTrigger className='h-11'>
+                            <SelectValue placeholder='Status' />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {statusOptions.map((status) => (
+                              <SelectItem key={status} value={status}>
+                                {status}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <Button
+                        type='button'
+                        onClick={handleAddAgendaTask}
+                        disabled={isSavingAgenda}
+                        className='w-full h-11 mt-4'
+                        size='lg'
+                      >
+                        {isSavingAgenda ? 'Salvando...' : 'Adicionar'}
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Ponto Tab */}
+            <TabsContent value='ponto' className='mt-3'>
+              <Card>
+                <CardHeader className='pb-3'>
+                  <CardTitle className='text-lg md:text-xl'>Ponto</CardTitle>
+                  <CardDescription className='text-xs md:text-sm'>Horas semanais (seg-dom)</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className='flex flex-col gap-4'>
+                    {(() => {
+                      const baseWorkedHours = calculateWorkedHours(weekTimeRecords);
+                      const runningHours = currentRunningTime / 3600;
+                      const workedHours = baseWorkedHours + runningHours;
+                      const isPaid = workedHours >= 4;
+                      const progressPercent = Math.min((workedHours / 4) * 100, 100);
+                      const hasActiveEntry = timeRecords.length > 0 && timeRecords[timeRecords.length - 1].type === 'Entrada';
+
+                      return (
+                        <>
+                          <div className='text-center py-4'>
+                            <div className='text-4xl md:text-5xl font-bold'>
+                              {workedHours.toFixed(2)}h
+                            </div>
+                            <div className='text-muted-foreground text-xs mt-1'>
+                              de 4h trabalhadas
+                            </div>
+                          </div>
+
+                          <div className='space-y-2'>
+                            <Progress value={progressPercent} className='h-2.5' />
+                            <div className='flex justify-between text-xs text-muted-foreground'>
+                              <span>0h</span>
+                              <span>4h</span>
+                            </div>
+                          </div>
+
+                          {isPaid && hasActiveEntry && (
+                            <div className='rounded-lg border border-amber-500 bg-amber-500/10 p-3 text-center'>
+                              <div className='text-amber-600 font-semibold text-sm'>
+                                ⚠ Entrada ativa com 4h+ trabalhadas
+                              </div>
+                              <div className='text-muted-foreground text-xs mt-1'>
+                                Registre a saída para contabilizar
+                              </div>
+                            </div>
+                          )}
+
+                          {isPaid && !hasActiveEntry && (
+                            <div className='rounded-lg border border-green-500 bg-green-500/10 p-3 text-center'>
+                              <div className='text-green-600 font-semibold text-sm'>
+                                ✔ Horas semanais pagas
+                              </div>
+                              <div className='text-muted-foreground text-xs mt-1'>
+                                {workedHours.toFixed(2)}h / 4h completadas
+                              </div>
+                            </div>
+                          )}
+
+                          <Button
+                            onClick={handleBaterPonto}
+                            disabled={isBatingPonto}
+                            className='w-full h-12'
+                            size='lg'
+                          >
+                            {isBatingPonto ? 'Registrando...' : timeRecords.length === 0 || timeRecords[timeRecords.length - 1].type === 'Saída' ? 'Registrar Entrada' : 'Registrar Saída'}
+                          </Button>
+
+                          <div className='space-y-2 mt-4'>
+                            <div className='text-muted-foreground text-xs font-medium uppercase'>
+                              Registros de Hoje
+                            </div>
+                            {timeRecords.length === 0 ? (
+                              <div className='text-muted-foreground text-sm text-center py-6 border rounded-lg'>
+                                Nenhum registro hoje
+                              </div>
+                            ) : (
+                              <div className='space-y-2'>
+                                {timeRecords.map((record) => (
+                                  <div key={record.id} className='flex items-center justify-between rounded-lg border p-3'>
+                                    <span className='text-sm font-medium'>{record.type}</span>
+                                    <span className='text-muted-foreground text-sm font-mono'>
+                                      {record.timestamp?.toDate ? format(record.timestamp.toDate(), 'HH:mm:ss') : '--:--:--'}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        {/* Desktop Grid */}
+        <div className='hidden lg:grid lg:grid-cols-2 gap-4'>
           <Card className='h-105'>
             <CardHeader>
               <CardTitle>Lista de tarefas</CardTitle>
@@ -1230,25 +1652,25 @@ export default function IndividualPage() {
         </div>
       </div>
       <Dialog open={isTaskModalOpen} onOpenChange={setIsTaskModalOpen}>
-        <DialogContent>
+        <DialogContent className='max-w-[95vw] md:max-w-2xl max-h-[90vh] overflow-y-auto'>
           <DialogHeader>
-            <DialogTitle>{activeTask?.title ?? 'Atividade'}</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className='text-lg md:text-xl pr-8'>{activeTask?.title ?? 'Atividade'}</DialogTitle>
+            <DialogDescription className='text-xs md:text-sm'>
               {activeTask?.projectName
                 ? `Projeto: ${activeTask.projectName}`
                 : 'Detalhes da atividade'}
             </DialogDescription>
           </DialogHeader>
-          <div className='grid gap-3'>
-            <div className='grid grid-cols-1 gap-2 sm:grid-cols-2'>
-              <div className='rounded-md border p-3 text-sm'>
-                <div className='text-muted-foreground text-xs'>Prazo</div>
-                <div className='mt-1 font-medium'>{activeTask?.due || '--'}</div>
+          <div className='grid gap-3 md:gap-4'>
+            <div className='grid grid-cols-2 gap-2'>
+              <div className='rounded-lg border p-3 text-sm'>
+                <div className='text-muted-foreground text-xs mb-1'>Prazo</div>
+                <div className='font-medium text-xs md:text-sm'>{activeTask?.due || '--'}</div>
               </div>
-              <div className='rounded-md border p-3 text-sm'>
-                <div className='text-muted-foreground text-xs'>Prioridade</div>
+              <div className='rounded-lg border p-3 text-sm'>
+                <div className='text-muted-foreground text-xs mb-1'>Prioridade</div>
                 {activeTask ? (
-                  <Badge className={priorityStyles[activeTask.priority]}>
+                  <Badge className={`${priorityStyles[activeTask.priority]} text-xs`}>
                     {activeTask.priority}
                   </Badge>
                 ) : (
@@ -1256,64 +1678,76 @@ export default function IndividualPage() {
                 )}
               </div>
             </div>
-            <Select
-              value={editStatus}
-              disabled={isSavingEdit}
-              onValueChange={setEditStatus}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder='Status' />
-              </SelectTrigger>
-              <SelectContent>
-                {statusOptions.map((status) => (
-                  <SelectItem key={status} value={status}>
-                    {status}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Textarea
-              placeholder='Adicionar atualizacao'
-              className='min-h-20'
-              value={updateNote}
-              disabled={isSavingEdit}
-              onChange={(event) => setUpdateNote(event.target.value)}
-            />
-            <div className='rounded-md border p-3'>
-              <div className='text-muted-foreground text-xs'>Atualizacoes</div>
-              <div className='mt-2 space-y-2'>
+            
+            <div className='space-y-2'>
+              <label className='text-sm font-medium'>Status</label>
+              <Select
+                value={editStatus}
+                disabled={isSavingEdit}
+                onValueChange={setEditStatus}
+              >
+                <SelectTrigger className='h-11'>
+                  <SelectValue placeholder='Status' />
+                </SelectTrigger>
+                <SelectContent>
+                  {statusOptions.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {status}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className='space-y-2'>
+              <label className='text-sm font-medium'>Adicionar atualização</label>
+              <Textarea
+                placeholder='Descreva sua atualização'
+                className='min-h-20'
+                value={updateNote}
+                disabled={isSavingEdit}
+                onChange={(event) => setUpdateNote(event.target.value)}
+              />
+            </div>
+            
+            <div className='rounded-lg border p-3'>
+              <div className='text-sm font-medium mb-3'>Atualizações anteriores</div>
+              <div className='space-y-2 max-h-60 overflow-y-auto'>
                 {activeTask?.updates && activeTask.updates.length > 0 ? (
                   activeTask.updates.map((update) => (
-                    <div key={update.id} className='rounded-md border p-2'>
-                      <div className='text-xs font-medium'>
-                        {update.author}
+                    <div key={update.id} className='rounded-lg border bg-muted/30 p-3'>
+                      <div className='flex items-start justify-between gap-2 mb-1'>
+                        <div className='text-xs font-medium'>
+                          {update.author}
+                        </div>
+                        <div className='text-muted-foreground text-[10px]'>
+                          {update.time}
+                        </div>
                       </div>
-                      <div className='text-muted-foreground text-xs'>
+                      <div className='text-sm'>
                         {update.note}
-                      </div>
-                      <div className='text-muted-foreground text-[11px]'>
-                        {update.time}
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div className='text-muted-foreground text-xs'>
-                    Sem atualizacoes.
+                  <div className='text-muted-foreground text-sm text-center py-4'>
+                    Sem atualizações
                   </div>
                 )}
               </div>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className='flex-col gap-2 sm:flex-row sm:gap-0'>
             <Button
               type='button'
               variant='outline'
               onClick={() => setIsTaskModalOpen(false)}
+              className='w-full sm:w-auto'
             >
               Fechar
             </Button>
             {activeTask?.projectId ? (
-              <Button asChild type='button' variant='secondary'>
+              <Button asChild type='button' variant='secondary' className='w-full sm:w-auto'>
                 <Link
                   href={`/dashboard/acompanhamento/projetos/${activeTask.projectId}`}
                 >
@@ -1325,8 +1759,9 @@ export default function IndividualPage() {
               type='button'
               onClick={handleUpdateTask}
               disabled={isSavingEdit}
+              className='w-full sm:w-auto'
             >
-              {isSavingEdit ? 'Salvando...' : 'Salvar atualizacao'}
+              {isSavingEdit ? 'Salvando...' : 'Salvar atualização'}
             </Button>
           </DialogFooter>
         </DialogContent>

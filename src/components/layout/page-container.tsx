@@ -25,7 +25,8 @@ export default function PageContainer({
   accessFallback,
   pageTitle,
   pageDescription,
-  pageHeaderAction
+  pageHeaderAction,
+  hideHeaderOnMobile = false
 }: {
   children: React.ReactNode;
   scrollable?: boolean;
@@ -35,6 +36,7 @@ export default function PageContainer({
   pageTitle?: string;
   pageDescription?: string;
   pageHeaderAction?: React.ReactNode;
+  hideHeaderOnMobile?: boolean;
 }) {
   if (!access) {
     return (
@@ -53,7 +55,11 @@ export default function PageContainer({
   return scrollable ? (
     <ScrollArea className='h-[calc(100dvh-52px)]'>
       <div className='flex flex-1 flex-col p-4 md:px-6'>
-        <div className='mb-4 flex items-center justify-between'>
+        <div
+          className={`mb-4 flex items-center justify-between${
+            hideHeaderOnMobile ? ' hidden md:flex' : ''
+          }`}
+        >
           <div>
             <Heading
               title={pageTitle ?? ''}
@@ -67,7 +73,11 @@ export default function PageContainer({
     </ScrollArea>
   ) : (
     <div className='flex flex-1 flex-col p-4 md:px-6'>
-      <div className='mb-4 flex items-center justify-between'>
+      <div
+        className={`mb-4 flex items-center justify-between${
+          hideHeaderOnMobile ? ' hidden md:flex' : ''
+        }`}
+      >
         <div>
           <Heading
             title={pageTitle ?? ''}
