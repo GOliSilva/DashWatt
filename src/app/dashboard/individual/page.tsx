@@ -1295,6 +1295,11 @@ export default function IndividualPage() {
                             <span className='text-muted-foreground text-xs'>
                               Prazo: {task.due}
                             </span>
+                            {task.description ? (
+                              <span className='text-muted-foreground text-xs line-clamp-2 break-all'>
+                                {task.description}
+                              </span>
+                            ) : null}
                           </div>
                           <div className='flex flex-col items-end gap-1'>
                             <Badge className={statusStyles[task.status]}>
@@ -1682,6 +1687,13 @@ export default function IndividualPage() {
                 ) : (
                   <span className='text-muted-foreground text-xs'>--</span>
                 )}
+              </div>
+            </div>
+
+            <div className='rounded-lg border p-3 text-sm'>
+              <div className='text-muted-foreground text-xs mb-1'>Descrição</div>
+              <div className='text-sm break-all'>
+                {activeTask?.description?.trim() || 'Sem descrição'}
               </div>
             </div>
             
