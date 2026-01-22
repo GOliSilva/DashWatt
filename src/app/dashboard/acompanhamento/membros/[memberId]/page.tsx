@@ -327,9 +327,6 @@ export default function MembroPage() {
         } else {
           setAgendaTasks([]);
         }
-        if (Array.isArray(data.tasks)) {
-          setMemberTasks(data.tasks);
-        }
         if (Array.isArray(data.alerts)) {
           setMemberAlerts(data.alerts);
         }

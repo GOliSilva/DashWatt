@@ -311,44 +311,59 @@ export default function EstatisticasPage() {
     const charts: PieChartDefinition[] = [
       {
         title: 'Automacao',
-        caption: `${liderAutomacao} lidera com ${percLiderAutomacao}%`,
+        caption: totalAutomacao === 0 
+          ? 'Nenhum projeto de automação cadastrado'
+          : `${liderAutomacao} lidera com ${percLiderAutomacao}%`,
         config: {
           domotica: { label: 'Domotica', color: sectorTone },
-          industrial: { label: 'Industrial', color: sectorTone }
+          industrial: { label: 'Industrial', color: sectorTone },
+          empty: { label: 'Sem dados', color: 'hsl(var(--muted))' }
         },
-        data: [
-          { name: 'domotica', value: faturamentoDomotica },
-          { name: 'industrial', value: faturamentoIndustrial }
-        ],
-        centerLabel: formatCurrency(totalAutomacao),
+        data: totalAutomacao === 0 
+          ? [{ name: 'empty', value: 1 }]
+          : [
+              { name: 'domotica', value: faturamentoDomotica },
+              { name: 'industrial', value: faturamentoIndustrial }
+            ],
+        centerLabel: totalAutomacao === 0 ? 'R$ 0,00' : formatCurrency(totalAutomacao),
         totalValue: totalAutomacao
       },
       {
         title: 'Eletrica',
-        caption: `${liderEletrica} lidera com ${percLiderEletrica}%`,
+        caption: totalEletrica === 0
+          ? 'Nenhum projeto elétrico cadastrado'
+          : `${liderEletrica} lidera com ${percLiderEletrica}%`,
         config: {
           projetoEletrico: { label: 'Projeto Eletrico', color: sectorTone },
-          solar: { label: 'Solar', color: sectorTone }
+          solar: { label: 'Solar', color: sectorTone },
+          empty: { label: 'Sem dados', color: 'hsl(var(--muted))' }
         },
-        data: [
-          { name: 'projetoEletrico', value: faturamentoProjetoEletrico },
-          { name: 'solar', value: faturamentoSolar }
-        ],
-        centerLabel: formatCurrency(totalEletrica),
+        data: totalEletrica === 0
+          ? [{ name: 'empty', value: 1 }]
+          : [
+              { name: 'projetoEletrico', value: faturamentoProjetoEletrico },
+              { name: 'solar', value: faturamentoSolar }
+            ],
+        centerLabel: totalEletrica === 0 ? 'R$ 0,00' : formatCurrency(totalEletrica),
         totalValue: totalEletrica
       },
       {
         title: 'Geral',
-        caption: `${liderGeral} lidera com ${percLiderGeral}%`,
+        caption: totalGeral === 0
+          ? 'Nenhum projeto cadastrado'
+          : `${liderGeral} lidera com ${percLiderGeral}%`,
         config: {
           automacao: { label: 'Automacao', color: sectorTone },
-          eletrica: { label: 'Eletrica', color: sectorTone }
+          eletrica: { label: 'Eletrica', color: sectorTone },
+          empty: { label: 'Sem dados', color: 'hsl(var(--muted))' }
         },
-        data: [
-          { name: 'automacao', value: totalAutomacao },
-          { name: 'eletrica', value: totalEletrica }
-        ],
-        centerLabel: formatCurrency(totalGeral),
+        data: totalGeral === 0
+          ? [{ name: 'empty', value: 1 }]
+          : [
+              { name: 'automacao', value: totalAutomacao },
+              { name: 'eletrica', value: totalEletrica }
+            ],
+        centerLabel: totalGeral === 0 ? 'R$ 0,00' : formatCurrency(totalGeral),
         totalValue: totalGeral
       }
     ];

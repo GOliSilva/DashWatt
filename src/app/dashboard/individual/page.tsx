@@ -383,18 +383,14 @@ export default function IndividualPage() {
 
     const loadMember = async () => {
       try {
-        const normalizedEmail = user.email.toLowerCase().trim();
+        // Usar o UID do usuário para buscar o documento do membro
+        const memberRef = doc(db, 'members', user.uid);
+        const memberDoc = await getDoc(memberRef);
         
-        const allMembersSnapshot = await getDocs(collection(db, 'members'));
-        const matchingMember = allMembersSnapshot.docs.find(doc => {
-          const data = doc.data();
-          return data.email?.toLowerCase().trim() === normalizedEmail;
-        });
-        
-        if (matchingMember && isActive) {
+        if (memberDoc.exists() && isActive) {
           applyMemberSnapshot(
-            matchingMember.id,
-            matchingMember.data() as Partial<MemberInfo>
+            memberDoc.id,
+            memberDoc.data() as Partial<MemberInfo>
           );
         } else if (isActive) {
           setMemberNotFound(true);

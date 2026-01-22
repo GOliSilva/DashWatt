@@ -33,10 +33,9 @@ export function AlertsButton() {
   const { members } = useFirebaseData();
   
   const currentMember = React.useMemo(() => {
-    if (!user?.email) return null;
-    const userEmail = user.email.toLowerCase().trim();
-    return members.find((m) => m.email?.toLowerCase().trim() === userEmail);
-  }, [user?.email, members]);
+    if (!user?.uid) return null;
+    return members.find((m) => m.id === user.uid);
+  }, [user?.uid, members]);
 
   const alerts: Alert[] = React.useMemo(() => {
     if (!currentMember || !(currentMember as any).alerts) return [];
