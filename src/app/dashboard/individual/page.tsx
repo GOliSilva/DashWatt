@@ -130,6 +130,96 @@ const alertLevelStyles: Record<string, string> = {
   baixo: 'bg-emerald-500/10 text-emerald-700'
 };
 
+const STORAGE_KEYS = {
+  member: 'individual.member',
+  tasks: 'individual.tasks'
+} as const;
+
+type CachedTimeRecord = { id: string; type: string; timestamp: string };
+type MemberCacheData = Partial<MemberInfo> & {
+  tasks?: MemberTask[];
+  alerts?: MemberAlert[];
+  agendaTasks?: MemberTask[];
+  timeRecords?: { id: string; type: string; timestamp: any }[];
+};
+type MemberCachePayload = {
+  memberId: string;
+  data: Partial<MemberInfo> & {
+    tasks?: MemberTask[];
+    alerts?: MemberAlert[];
+    agendaTasks?: MemberTask[];
+    timeRecords?: CachedTimeRecord[];
+  };
+};
+type TasksCachePayload = {
+  memberId: string;
+  tasks: MemberTask[];
+};
+
+const readFromStorage = <T,>(key: string): T | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const value = window.localStorage.getItem(key);
+    return value ? (JSON.parse(value) as T) : null;
+  } catch {
+    return null;
+  }
+};
+
+const writeToStorage = (key: string, value: unknown) => {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // ignore quota or serialization errors
+  }
+};
+
+const toCachedTimeRecords = (
+  records: { id: string; type: string; timestamp: any }[]
+): CachedTimeRecord[] =>
+  records
+    .map((record) => ({
+      id: record.id,
+      type: record.type,
+      timestamp: record.timestamp?.toDate
+        ? record.timestamp.toDate().toISOString()
+        : record.timestamp instanceof Date
+          ? record.timestamp.toISOString()
+          : ''
+    }))
+    .filter((record) => Boolean(record.timestamp));
+
+const fromCachedTimeRecords = (records?: CachedTimeRecord[]) => {
+  if (!Array.isArray(records)) return [] as { id: string; type: string; timestamp: any }[];
+  return records.map((record) => ({
+    ...record,
+    timestamp: {
+      toDate: () => new Date(record.timestamp)
+    }
+  }));
+};
+
+const storeMemberCache = (
+  memberId: string,
+  data: MemberCacheData
+) => {
+  writeToStorage(STORAGE_KEYS.member, {
+    memberId,
+    data: {
+      ...data,
+      timeRecords: toCachedTimeRecords(data.timeRecords ?? [])
+    }
+  } satisfies MemberCachePayload);
+};
+
+const storeTasksCache = (memberId: string, tasks: MemberTask[]) => {
+  writeToStorage(STORAGE_KEYS.tasks, {
+    memberId,
+    tasks
+  } satisfies TasksCachePayload);
+};
+
 const parseDueDate = (value: string) => {
   if (!value) {
     return null;
@@ -266,6 +356,16 @@ export default function IndividualPage() {
     priority: priorityOptions[1],
     status: statusOptions[0]
   });
+  const buildMemberCache = React.useCallback(
+    (overrides: Partial<MemberCacheData> = {}) => ({
+      ...memberInfo,
+      alerts: memberAlerts,
+      agendaTasks,
+      timeRecords: weekTimeRecords,
+      ...overrides
+    }),
+    [memberInfo, memberAlerts, agendaTasks, weekTimeRecords]
+  );
   const allTasks = React.useMemo(
     () => [...agendaTasks, ...projectTasks],
     [agendaTasks, projectTasks]
@@ -393,8 +493,28 @@ export default function IndividualPage() {
       }
     };
 
+    const loadFromCache = () => {
+      const cached = readFromStorage<MemberCachePayload>(STORAGE_KEYS.member);
+      if (!cached || cached.memberId !== user.uid) {
+        return false;
+      }
+      const hydrated = {
+        ...cached.data,
+        timeRecords: fromCachedTimeRecords(cached.data.timeRecords)
+      };
+      applyMemberSnapshot(cached.memberId, hydrated);
+      setMemberNotFound(false);
+      setIsMemberLoading(false);
+      return true;
+    };
+
     const loadMember = async () => {
       try {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+          if (loadFromCache()) {
+            return;
+          }
+        }
         // Usar o UID do usuário para buscar o documento do membro
         const memberRef = doc(db, 'members', user.uid);
         const memberDoc = await getDoc(memberRef);
@@ -404,12 +524,18 @@ export default function IndividualPage() {
             memberDoc.id,
             memberDoc.data() as Partial<MemberInfo>
           );
+          storeMemberCache(memberDoc.id, memberDoc.data() as any);
         } else if (isActive) {
           setMemberNotFound(true);
         }
       } catch (error) {
+        const usedCache = loadFromCache();
         console.error('Falha ao carregar membro:', error);
-        toast.error('Nao foi possivel carregar seus dados.');
+        if (!usedCache) {
+          toast.error('Nao foi possivel carregar seus dados.');
+        } else {
+          toast.message('Exibindo dados offline.');
+        }
       } finally {
         if (isActive) {
           setIsMemberLoading(false);
@@ -432,8 +558,22 @@ export default function IndividualPage() {
 
     let isActive = true;
     setIsProjectTasksLoading(true);
+    const loadTasksFromCache = () => {
+      const cached = readFromStorage<TasksCachePayload>(STORAGE_KEYS.tasks);
+      if (!cached || cached.memberId !== memberId) {
+        return false;
+      }
+      setProjectTasks(cached.tasks);
+      setIsProjectTasksLoading(false);
+      return true;
+    };
     const loadTasks = async () => {
       try {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+          if (loadTasksFromCache()) {
+            return;
+          }
+        }
         const snapshot = await getDocs(collection(db, 'projects'));
         if (!isActive) {
           return;
@@ -483,9 +623,15 @@ export default function IndividualPage() {
         });
 
         setProjectTasks(tasksFromDb);
+        storeTasksCache(memberId, tasksFromDb);
       } catch (error) {
+        const usedCache = loadTasksFromCache();
         console.error('Falha ao carregar tarefas:', error);
-        toast.error('Nao foi possivel carregar tarefas.');
+        if (!usedCache) {
+          toast.error('Nao foi possivel carregar tarefas.');
+        } else {
+          toast.message('Exibindo tarefas offline.');
+        }
       } finally {
         if (isActive) {
           setIsProjectTasksLoading(false);
@@ -597,24 +743,24 @@ export default function IndividualPage() {
           };
         });
 
+        const nextLocalAgenda = agendaTasks.map((task) =>
+          task.id === activeTask.id
+            ? {
+                ...task,
+                status: editStatus,
+                updates: updateEntry
+                  ? [updateEntry, ...(task.updates ?? [])]
+                  : task.updates
+              }
+            : task
+        );
+
         await updateDoc(memberRef, {
           agendaTasks: nextAgenda,
           updatedAt: serverTimestamp()
         });
 
-        setAgendaTasks((current) =>
-          current.map((task) =>
-            task.id === activeTask.id
-              ? {
-                  ...task,
-                  status: editStatus,
-                  updates: updateEntry
-                    ? [updateEntry, ...(task.updates ?? [])]
-                    : task.updates
-                }
-              : task
-          )
-        );
+        setAgendaTasks(nextLocalAgenda);
         setActiveTask((current) =>
           current
             ? {
@@ -627,6 +773,7 @@ export default function IndividualPage() {
             : current
         );
         setUpdateNote('');
+        storeMemberCache(memberId, buildMemberCache({ agendaTasks: nextLocalAgenda }));
         toast.success('Atualizacao registrada.');
         return;
       }
@@ -677,19 +824,19 @@ export default function IndividualPage() {
         updatedAt: serverTimestamp()
       });
 
-      setProjectTasks((current) =>
-        current.map((task) =>
-          task.id === activeTask.id
-            ? {
-                ...task,
-                status: editStatus,
-                updates: updateEntry
-                  ? [updateEntry, ...(task.updates ?? [])]
-                  : task.updates
-              }
-            : task
-        )
+      const nextProjectTasks = projectTasks.map((task) =>
+        task.id === activeTask.id
+          ? {
+              ...task,
+              status: editStatus,
+              updates: updateEntry
+                ? [updateEntry, ...(task.updates ?? [])]
+                : task.updates
+            }
+          : task
       );
+
+      setProjectTasks(nextProjectTasks);
       setActiveTask((current) =>
         current
           ? {
@@ -702,6 +849,7 @@ export default function IndividualPage() {
           : current
       );
       setUpdateNote('');
+      storeTasksCache(memberId, nextProjectTasks);
       toast.success('Atividade atualizada.');
     } catch (error) {
       console.error('Falha ao atualizar atividade:', error);
@@ -737,9 +885,13 @@ export default function IndividualPage() {
         ...newRecord,
         timestamp: { toDate: () => newRecord.timestamp.toDate() }
       };
-      
-      setTimeRecords(prev => [...prev, localRecord]);
-      setWeekTimeRecords(prev => [...prev, localRecord]);
+
+      const nextTimeRecords = [...timeRecords, localRecord];
+      const nextWeekRecords = [...weekTimeRecords, localRecord];
+
+      setTimeRecords(nextTimeRecords);
+      setWeekTimeRecords(nextWeekRecords);
+      storeMemberCache(memberId, buildMemberCache({ timeRecords: nextWeekRecords }));
       toast.success(`${type} registrada`);
     } catch (error) {
       console.error('Erro ao bater ponto:', error);
@@ -803,7 +955,9 @@ export default function IndividualPage() {
         updatedAt: serverTimestamp()
       });
 
-      setAgendaTasks((current) => [agendaTask, ...current]);
+      const nextAgendaTasks = [agendaTask, ...agendaTasks];
+      setAgendaTasks(nextAgendaTasks);
+      storeMemberCache(memberId, buildMemberCache({ agendaTasks: nextAgendaTasks }));
       setAgendaForm({
         date: '',
         title: '',
