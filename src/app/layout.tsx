@@ -7,6 +7,7 @@ import type { Metadata, Viewport } from 'next';
 import { cookies } from 'next/headers';
 import NextTopLoader from 'nextjs-toploader';
 import { NuqsAdapter } from 'nuqs/adapters/next/app';
+import RegisterSW from '@/components/pwa/register-sw';
 import './globals.css';
 import './theme.css';
 
@@ -17,7 +18,23 @@ const META_THEME_COLORS = {
 
 export const metadata: Metadata = {
   title: 'Next Shadcn',
-  description: 'Basic dashboard with Next.js and Shadcn'
+  description: 'Basic dashboard with Next.js and Shadcn',
+  manifest: '/manifest.webmanifest',
+  appleWebApp: {
+    capable: true,
+    title: 'Next Shadcn',
+    statusBarStyle: 'default'
+  },
+  formatDetection: {
+    telephone: false
+  },
+  icons: {
+    icon: [
+      { url: '/icons/icon-192.svg', type: 'image/svg+xml' },
+      { url: '/icons/icon-512.svg', type: 'image/svg+xml' }
+    ],
+    apple: [{ url: '/icons/apple-touch-icon.svg', type: 'image/svg+xml' }]
+  }
 };
 
 export const viewport: Viewport = {
@@ -67,6 +84,7 @@ export default async function RootLayout({
           >
             <Providers activeThemeValue={activeThemeValue as string}>
               <Toaster />
+              <RegisterSW />
               {children}
             </Providers>
           </ThemeProvider>
