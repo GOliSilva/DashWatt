@@ -13,7 +13,8 @@ const baseConfig: NextConfig = {
       }
     ]
   },
-  transpilePackages: ['geist']
+  transpilePackages: ['geist'],
+  outputFileTracingRoot: __dirname
 };
 
 const withSerwistConfig = withSerwist({
