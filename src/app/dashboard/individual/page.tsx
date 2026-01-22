@@ -1087,65 +1087,71 @@ export default function IndividualPage() {
                         />
                       </div>
 
-                      <div className='space-y-2'>
-                        <label className='text-sm font-medium'>Prioridade</label>
-                        <Select
-                          value={agendaForm.priority}
-                          disabled={isSavingAgenda}
-                          onValueChange={(value) =>
-                            setAgendaForm((current) => ({
-                              ...current,
-                              priority: value
-                            }))
-                          }
-                        >
-                          <SelectTrigger className='h-11'>
-                            <SelectValue placeholder='Prioridade' />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {priorityOptions.map((priority) => (
-                              <SelectItem key={priority} value={priority}>
-                                {priority}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                      <div className='grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-end gap-3'>
+                        <div className='space-y-2'>
+                          <label className='text-sm font-medium'>Prioridade</label>
+                          <Select
+                            value={agendaForm.priority}
+                            disabled={isSavingAgenda}
+                            onValueChange={(value) =>
+                              setAgendaForm((current) => ({
+                                ...current,
+                                priority: value
+                              }))
+                            }
+                          >
+                            <SelectTrigger className='h-11'>
+                              <SelectValue placeholder='Prioridade' />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {priorityOptions.map((priority) => (
+                                <SelectItem key={priority} value={priority}>
+                                  {priority}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
 
-                      <div className='space-y-2'>
-                        <label className='text-sm font-medium'>Status</label>
-                        <Select
-                          value={agendaForm.status}
-                          disabled={isSavingAgenda}
-                          onValueChange={(value) =>
-                            setAgendaForm((current) => ({
-                              ...current,
-                              status: value
-                            }))
-                          }
-                        >
-                          <SelectTrigger className='h-11'>
-                            <SelectValue placeholder='Status' />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {statusOptions.map((status) => (
-                              <SelectItem key={status} value={status}>
-                                {status}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                        <div className='space-y-2'>
+                          <label className='text-sm font-medium'>Status</label>
+                          <Select
+                            value={agendaForm.status}
+                            disabled={isSavingAgenda}
+                            onValueChange={(value) =>
+                              setAgendaForm((current) => ({
+                                ...current,
+                                status: value
+                              }))
+                            }
+                          >
+                            <SelectTrigger className='h-11'>
+                              <SelectValue placeholder='Status' />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {statusOptions.map((status) => (
+                                <SelectItem key={status} value={status}>
+                                  {status}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
 
-                      <Button
-                        type='button'
-                        onClick={handleAddAgendaTask}
-                        disabled={isSavingAgenda}
-                        className='w-full h-11 mt-4'
-                        size='lg'
-                      >
-                        {isSavingAgenda ? 'Salvando...' : 'Adicionar'}
-                      </Button>
+                        <div className='space-y-2'>
+                          <span className='text-sm font-medium opacity-0'>Adicionar</span>
+                          <Button
+                            type='button'
+                            onClick={handleAddAgendaTask}
+                            disabled={isSavingAgenda}
+                            className='h-11 w-11 rounded-md p-0'
+                            size='icon'
+                            aria-label='Adicionar'
+                          >
+                            +
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </CardContent>
