@@ -1,6 +1,8 @@
 'use client';
 import * as React from 'react';
 import PageContainer from '@/components/layout/page-container';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faPenToSquare } from '@fortawesome/free-regular-svg-icons';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -211,6 +213,8 @@ export default function MembroPage() {
   const [memberAlerts, setMemberAlerts] = React.useState<MemberAlert[]>(alerts);
   const [activeTask, setActiveTask] = React.useState<MemberTask | null>(null);
   const [isTaskModalOpen, setIsTaskModalOpen] = React.useState(false);
+  const [isMemberEditOpen, setIsMemberEditOpen] = React.useState(false);
+  const [isSavingMemberEdit, setIsSavingMemberEdit] = React.useState(false);
   const [memberOptions, setMemberOptions] = React.useState<MemberOption[]>([]);
   const [isMembersLoading, setIsMembersLoading] = React.useState(false);
   const [isEditOwnerOpen, setIsEditOwnerOpen] = React.useState(false);
@@ -225,6 +229,13 @@ export default function MembroPage() {
     ownerId: '',
     status: statusOptions[1],
     priority: priorityOptions[1]
+  });
+  const [memberEditForm, setMemberEditForm] = React.useState({
+    name: '',
+    email: '',
+    sector: '',
+    cpf: '',
+    role: ''
   });
   const allTasks = React.useMemo(
     () => [...agendaTasks, ...projectTasks],
@@ -571,6 +582,60 @@ export default function MembroPage() {
     }
   };
 
+  const openMemberEditInfo = () => {
+    setMemberEditForm({
+      name: memberInfo.name ?? '',
+      email: memberInfo.email ?? '',
+      sector: memberInfo.sector ?? '',
+      cpf: memberInfo.cpf ?? '',
+      role: memberInfo.role ?? ''
+    });
+    setIsMemberEditOpen(true);
+  };
+
+  const handleSaveMemberInfo = async () => {
+    if (!firebaseDb || !memberId) {
+      toast.error('Membro nao encontrado.');
+      return;
+    }
+    if (!memberEditForm.name.trim()) {
+      toast.error('Informe o nome.');
+      return;
+    }
+    if (!memberEditForm.email.trim()) {
+      toast.error('Informe o email.');
+      return;
+    }
+
+    setIsSavingMemberEdit(true);
+    try {
+      const memberRef = doc(firebaseDb, 'members', memberId);
+      await updateDoc(memberRef, {
+        name: memberEditForm.name.trim(),
+        email: memberEditForm.email.trim(),
+        sector: memberEditForm.sector.trim(),
+        cpf: memberEditForm.cpf.trim(),
+        role: memberEditForm.role.trim(),
+        updatedAt: serverTimestamp()
+      });
+
+      setMemberInfo({
+        name: memberEditForm.name.trim(),
+        email: memberEditForm.email.trim(),
+        sector: memberEditForm.sector.trim(),
+        cpf: memberEditForm.cpf.trim(),
+        role: memberEditForm.role.trim()
+      });
+      setIsMemberEditOpen(false);
+      toast.success('Informacoes atualizadas.');
+    } catch (error) {
+      console.error('Falha ao atualizar membro:', error);
+      toast.error('Nao foi possivel atualizar o membro.');
+    } finally {
+      setIsSavingMemberEdit(false);
+    }
+  };
+
   return (
     <PageContainer
       pageTitle='Membro'
@@ -695,9 +760,21 @@ export default function MembroPage() {
           </Card>
 
           <Card className='h-full'>
-            <CardHeader>
-              <CardTitle>Informacoes</CardTitle>
-              <CardDescription>Dados do membro</CardDescription>
+            <CardHeader className='flex flex-row items-start justify-between'>
+              <div>
+                <CardTitle>Informacoes</CardTitle>
+                <CardDescription>Dados do membro</CardDescription>
+              </div>
+              <Button
+                type='button'
+                size='icon'
+                variant='ghost'
+                className='h-9 w-9 cursor-pointer self-center rounded-md border hover:bg-white/10 [&_svg]:!h-[1em] [&_svg]:!w-[1em]'
+                onClick={openMemberEditInfo}
+                aria-label='Editar informacoes do membro'
+              >
+                <FontAwesomeIcon icon={faPenToSquare} size='lg' />
+              </Button>
             </CardHeader>
             <CardContent>
               <div className='grid grid-cols-1 gap-3 text-sm sm:grid-cols-2'>
@@ -963,6 +1040,118 @@ export default function MembroPage() {
               disabled={isSavingEdit}
             >
               {isSavingEdit ? 'Salvando...' : 'Salvar alteracoes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={isMemberEditOpen} onOpenChange={setIsMemberEditOpen}>
+        <DialogContent className='max-w-[95vw] sm:max-w-lg'>
+          <DialogHeader>
+            <DialogTitle>Editar informacoes</DialogTitle>
+            <DialogDescription>Atualize os dados do membro.</DialogDescription>
+          </DialogHeader>
+          <div className='space-y-4'>
+            <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
+              <div className='space-y-1'>
+                <label className='text-sm font-medium' htmlFor='memberEditName'>
+                  Nome
+                </label>
+                <Input
+                  id='memberEditName'
+                  value={memberEditForm.name}
+                  disabled={isSavingMemberEdit}
+                  onChange={(event) =>
+                    setMemberEditForm((current) => ({
+                      ...current,
+                      name: event.target.value
+                    }))
+                  }
+                />
+              </div>
+              <div className='space-y-1'>
+                <label className='text-sm font-medium' htmlFor='memberEditEmail'>
+                  Email
+                </label>
+                <Input
+                  id='memberEditEmail'
+                  type='email'
+                  value={memberEditForm.email}
+                  disabled={isSavingMemberEdit}
+                  onChange={(event) =>
+                    setMemberEditForm((current) => ({
+                      ...current,
+                      email: event.target.value
+                    }))
+                  }
+                />
+              </div>
+            </div>
+            <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
+              <div className='space-y-1'>
+                <label className='text-sm font-medium' htmlFor='memberEditSector'>
+                  Setor
+                </label>
+                <Input
+                  id='memberEditSector'
+                  value={memberEditForm.sector}
+                  disabled={isSavingMemberEdit}
+                  onChange={(event) =>
+                    setMemberEditForm((current) => ({
+                      ...current,
+                      sector: event.target.value
+                    }))
+                  }
+                />
+              </div>
+              <div className='space-y-1'>
+                <label className='text-sm font-medium' htmlFor='memberEditRole'>
+                  Cargo
+                </label>
+                <Input
+                  id='memberEditRole'
+                  value={memberEditForm.role}
+                  disabled={isSavingMemberEdit}
+                  onChange={(event) =>
+                    setMemberEditForm((current) => ({
+                      ...current,
+                      role: event.target.value
+                    }))
+                  }
+                />
+              </div>
+            </div>
+            <div className='space-y-1'>
+              <label className='text-sm font-medium' htmlFor='memberEditCpf'>
+                CPF
+              </label>
+              <Input
+                id='memberEditCpf'
+                value={memberEditForm.cpf}
+                disabled={isSavingMemberEdit}
+                onChange={(event) =>
+                  setMemberEditForm((current) => ({
+                    ...current,
+                    cpf: event.target.value
+                  }))
+                }
+              />
+            </div>
+          </div>
+          <DialogFooter className='gap-2 sm:gap-2'>
+            <Button
+              type='button'
+              variant='secondary'
+              onClick={() => setIsMemberEditOpen(false)}
+              disabled={isSavingMemberEdit}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type='button'
+              onClick={handleSaveMemberInfo}
+              disabled={isSavingMemberEdit}
+            >
+              {isSavingMemberEdit ? 'Salvando...' : 'Salvar'}
             </Button>
           </DialogFooter>
         </DialogContent>

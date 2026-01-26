@@ -1,5 +1,6 @@
 'use client';
 import * as React from 'react';
+
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPenToSquare } from '@fortawesome/free-regular-svg-icons';
 import { faXmark } from '@fortawesome/free-solid-svg-icons';
@@ -348,6 +349,9 @@ export default function IndividualPage() {
   const [deletingAgendaId, setDeletingAgendaId] = React.useState<string | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false);
   const [taskToDelete, setTaskToDelete] = React.useState<MemberTask | null>(null);
+  const [isEditAgendaModalOpen, setIsEditAgendaModalOpen] = React.useState(false);
+  const [agendaTaskToEdit, setAgendaTaskToEdit] = React.useState<MemberTask | null>(null);
+  const [isSavingAgendaEdit, setIsSavingAgendaEdit] = React.useState(false);
   const [timeRecords, setTimeRecords] = React.useState<{id: string; type: string; timestamp: any}[]>([]);
   const [isBatingPonto, setIsBatingPonto] = React.useState(false);
   const [editStatus, setEditStatus] = React.useState(statusOptions[1]);
@@ -358,6 +362,13 @@ export default function IndividualPage() {
   const [hoveredTaskId, setHoveredTaskId] = React.useState<string | null>(null);
   const [hoveredEditTaskId, setHoveredEditTaskId] = React.useState<string | null>(null);
   const [agendaForm, setAgendaForm] = React.useState({
+    date: '',
+    title: '',
+    description: '',
+    priority: priorityOptions[1],
+    status: statusOptions[0]
+  });
+  const [agendaEditForm, setAgendaEditForm] = React.useState({
     date: '',
     title: '',
     description: '',
@@ -867,6 +878,86 @@ export default function IndividualPage() {
     }
   };
 
+  const openEditAgendaTask = (task: MemberTask) => {
+    setAgendaTaskToEdit(task);
+    setAgendaEditForm({
+      date: toInputDate(task.due),
+      title: task.title ?? '',
+      description: task.description ?? '',
+      priority: task.priority ?? priorityOptions[1],
+      status: task.status ?? statusOptions[0]
+    });
+    setIsEditAgendaModalOpen(true);
+  };
+
+  const handleSaveAgendaEdit = async () => {
+    if (!agendaTaskToEdit) return;
+    if (!agendaEditForm.title.trim()) {
+      toast.error('Informe o nome da atividade.');
+      return;
+    }
+    if (!agendaEditForm.date) {
+      toast.error('Selecione uma data.');
+      return;
+    }
+    if (!firebaseDb || !memberId) {
+      toast.error('Membro nao encontrado.');
+      return;
+    }
+
+    setIsSavingAgendaEdit(true);
+    try {
+      const db = firebaseDb;
+      const memberRef = doc(db, 'members', memberId);
+      const memberSnapshot = await getDoc(memberRef);
+      if (!memberSnapshot.exists()) {
+        toast.error('Membro nao encontrado.');
+        return;
+      }
+
+      const memberData = memberSnapshot.data() as { agendaTasks?: MemberTask[] };
+      const existingAgenda = Array.isArray(memberData.agendaTasks)
+        ? memberData.agendaTasks
+        : [];
+
+      const updatedTask: MemberTask = {
+        ...agendaTaskToEdit,
+        source: 'agenda',
+        title: agendaEditForm.title.trim(),
+        due: formatDateLabel(agendaEditForm.date),
+        status: agendaEditForm.status,
+        priority: agendaEditForm.priority,
+        description: agendaEditForm.description.trim()
+      };
+
+      const nextAgenda = existingAgenda.map((task) =>
+        task.id === agendaTaskToEdit.id ? updatedTask : task
+      );
+
+      await updateDoc(memberRef, {
+        agendaTasks: nextAgenda,
+        updatedAt: serverTimestamp()
+      });
+
+      const nextLocalAgenda = agendaTasks.map((task) =>
+        task.id === agendaTaskToEdit.id ? updatedTask : task
+      );
+      setAgendaTasks(nextLocalAgenda);
+      setActiveTask((current) =>
+        current?.id === agendaTaskToEdit.id ? updatedTask : current
+      );
+      storeMemberCache(memberId, buildMemberCache({ agendaTasks: nextLocalAgenda }));
+      setIsEditAgendaModalOpen(false);
+      setAgendaTaskToEdit(null);
+      toast.success('Agenda atualizada.');
+    } catch (error) {
+      console.error('Falha ao atualizar agenda:', error);
+      toast.error('Nao foi possivel atualizar a agenda.');
+    } finally {
+      setIsSavingAgendaEdit(false);
+    }
+  };
+
   const openDeleteAgendaTask = (task: MemberTask) => {
     setTaskToDelete(task);
     setIsDeleteModalOpen(true);
@@ -1123,14 +1214,15 @@ export default function IndividualPage() {
                                 <div className='flex justify-end gap-2'>
                                   {task.source === 'agenda' ? (
                                     <Button
-                                      onClick={() => handleTaskClick(task)}
+                                      onClick={() => openEditAgendaTask(task)}
                                       size='sm'
                                       variant='secondary'
-                                      className='border border-white'
+                                      className='h-9 px-3 border [&_svg]:!h-[1em] [&_svg]:!w-[1em]'
                                     >
                                       <FontAwesomeIcon
                                         icon={faPenToSquare}
-                                        className='mr-2 h-3 w-3'
+                                        size='lg'
+                                        className='mr-2'
                                       />
                                       Editar
                                     </Button>
@@ -1140,10 +1232,12 @@ export default function IndividualPage() {
                                       onClick={() => openDeleteAgendaTask(task)}
                                       size='sm'
                                       variant='destructive'
+                                      className='h-9 px-3 border [&_svg]:!h-[1em] [&_svg]:!w-[1em]'
                                     >
                                       <FontAwesomeIcon
                                         icon={faXmark}
-                                        className='mr-2 h-3 w-3'
+                                        size='lg'
+                                        className='mr-2'
                                       />
                                       Excluir
                                     </Button>
@@ -1569,36 +1663,40 @@ export default function IndividualPage() {
                           </div>
                           <div className='ml-auto flex items-center gap-2'>
                             {task.source === 'agenda' ? (
-                              <div className='flex items-center gap-1'>
+                              <div
+                                className='flex items-center gap-1'
+                                onPointerEnter={() => setHoveredEditTaskId(task.id)}
+                                onPointerMove={() => setHoveredEditTaskId(task.id)}
+                                onPointerLeave={() => setHoveredEditTaskId(null)}
+                              >
                                 <Button
                                   type='button'
                                   size='icon'
                                   variant='ghost'
-                                  className='h-7 w-7 border border-white cursor-pointer self-center'
+                                  className='h-9 w-9 cursor-pointer self-center rounded-md border  hover:bg-white/10 [&_svg]:!h-[1em] [&_svg]:!w-[1em]'
                                   onClick={(event) => {
                                     event.stopPropagation();
-                                    handleTaskClick(task);
+                                    openEditAgendaTask(task);
                                   }}
-                                  onMouseEnter={() => setHoveredEditTaskId(task.id)}
-                                  onMouseLeave={() => setHoveredEditTaskId(null)}
                                   aria-label='Editar tarefa da agenda'
                                 >
-                                  <FontAwesomeIcon icon={faPenToSquare} className='h-3 w-3' />
+                                  <FontAwesomeIcon icon={faPenToSquare} size="lg" />
+
+
+
                                 </Button>
                                 <Button
                                   type='button'
                                   size='icon'
                                   variant='ghost'
-                                  className='h-7 w-7 border border-white cursor-pointer self-center'
+                                  className='h-9 w-9 cursor-pointer self-center rounded-md border hover:bg-white/10 [&_svg]:!h-[1em] [&_svg]:!w-[1em]'
                                   onClick={(event) => {
                                     event.stopPropagation();
                                     openDeleteAgendaTask(task);
                                   }}
-                                  onMouseEnter={() => setHoveredEditTaskId(task.id)}
-                                  onMouseLeave={() => setHoveredEditTaskId(null)}
                                   aria-label='Excluir tarefa da agenda'
                                 >
-                                  <FontAwesomeIcon icon={faXmark} className='h-3 w-3' />
+                                  <FontAwesomeIcon icon={faXmark} size="lg" />
                                 </Button>
                               </div>
                             ) : null}
@@ -2083,6 +2181,139 @@ export default function IndividualPage() {
           ) : null}
         </DialogContent>
       </Dialog>
+      <Dialog open={isEditAgendaModalOpen} onOpenChange={setIsEditAgendaModalOpen}>
+        <DialogContent className='max-w-[95vw] sm:max-w-lg'>
+          <DialogHeader>
+            <DialogTitle>Editar tarefa da agenda</DialogTitle>
+            <DialogDescription>
+              Atualize as informacoes e salve as mudancas.
+            </DialogDescription>
+          </DialogHeader>
+          <div className='space-y-4'>
+            <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
+              <div className='space-y-1'>
+                <label className='text-sm font-medium' htmlFor='editAgendaDate'>
+                  Data
+                </label>
+                <Input
+                  id='editAgendaDate'
+                  type='date'
+                  value={agendaEditForm.date}
+                  disabled={isSavingAgendaEdit}
+                  onChange={(event) =>
+                    setAgendaEditForm((current) => ({
+                      ...current,
+                      date: event.target.value
+                    }))
+                  }
+                />
+              </div>
+              <div className='space-y-1'>
+                <label className='text-sm font-medium' htmlFor='editAgendaTitle'>
+                  Nome da atividade
+                </label>
+                <Input
+                  id='editAgendaTitle'
+                  placeholder='Ex: Visita tecnica'
+                  value={agendaEditForm.title}
+                  disabled={isSavingAgendaEdit}
+                  onChange={(event) =>
+                    setAgendaEditForm((current) => ({
+                      ...current,
+                      title: event.target.value
+                    }))
+                  }
+                />
+              </div>
+            </div>
+            <div className='space-y-1'>
+              <label className='text-sm font-medium' htmlFor='editAgendaNotes'>
+                Descricao
+              </label>
+              <Textarea
+                id='editAgendaNotes'
+                placeholder='Detalhes do compromisso'
+                className='min-h-16'
+                value={agendaEditForm.description}
+                disabled={isSavingAgendaEdit}
+                onChange={(event) =>
+                  setAgendaEditForm((current) => ({
+                    ...current,
+                    description: event.target.value
+                  }))
+                }
+              />
+            </div>
+            <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
+              <div className='space-y-1'>
+                <label className='text-sm font-medium'>Prioridade</label>
+                <Select
+                  value={agendaEditForm.priority}
+                  disabled={isSavingAgendaEdit}
+                  onValueChange={(value) =>
+                    setAgendaEditForm((current) => ({
+                      ...current,
+                      priority: value
+                    }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder='Prioridade' />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {priorityOptions.map((priority) => (
+                      <SelectItem key={priority} value={priority}>
+                        {priority}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className='space-y-1'>
+                <label className='text-sm font-medium'>Status</label>
+                <Select
+                  value={agendaEditForm.status}
+                  disabled={isSavingAgendaEdit}
+                  onValueChange={(value) =>
+                    setAgendaEditForm((current) => ({
+                      ...current,
+                      status: value
+                    }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder='Status' />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {statusOptions.map((status) => (
+                      <SelectItem key={status} value={status}>
+                        {status}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <DialogFooter className='gap-2 sm:gap-2'>
+            <Button
+              type='button'
+              variant='secondary'
+              onClick={() => setIsEditAgendaModalOpen(false)}
+              disabled={isSavingAgendaEdit}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type='button'
+              onClick={handleSaveAgendaEdit}
+              disabled={isSavingAgendaEdit}
+            >
+              {isSavingAgendaEdit ? 'Salvando...' : 'Salvar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
         <DialogContent className='max-w-[95vw] sm:max-w-md'>
           <DialogHeader>
@@ -2095,12 +2326,13 @@ export default function IndividualPage() {
               ?
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className='gap-2 sm:gap-0'>
+          <DialogFooter className='gap-2 sm:gap-2'>
             <Button
               type='button'
               variant='secondary'
               onClick={() => setIsDeleteModalOpen(false)}
               disabled={Boolean(deletingAgendaId)}
+              
             >
               Cancelar
             </Button>

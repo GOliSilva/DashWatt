@@ -129,6 +129,28 @@ Keep it updated when structure or conventions change.
   - Activities list is scrollable; page should not require overall scroll.
   - Data source: `src/data/acompanhamento-project.json`.
 
+## Individual member dashboard
+- Page: `src/app/dashboard/individual/page.tsx` (client component).
+- Data sources:
+  - Member doc in `members/{user.uid}` via Firebase Auth UID.
+  - Project tasks from `projects` collection, filtered by `Activities[].ownerId === memberId`.
+  - Member agenda tasks from `members/{uid}.agendaTasks`.
+  - Time records from `members/{uid}.timeRecords` (used for "Ponto").
+- Local cache:
+  - `localStorage` keys `individual.member` and `individual.tasks`.
+  - Cached time records are stored as ISO strings and rehydrated via `toDate()`.
+- UI layout:
+  - Mobile: tabs (Tarefas/Calendario/Agenda/Ponto).
+  - Desktop: 2-column grid with cards for tasks, calendar/day tasks, agenda form, and ponto.
+- Task actions:
+  - "Detalhes" opens the details dialog (project or agenda).
+  - Agenda tasks have edit/delete actions (Font Awesome icons).
+  - Edit agenda uses its own dialog and updates `agendaTasks` in Firestore + cache.
+  - Delete agenda uses a confirmation dialog and removes from Firestore + cache.
+- Time tracking:
+  - "Ponto" uses Entrada/Saida records to compute weekly hours.
+  - Active entry runs a timer to show current elapsed time.
+
 ## Overview (dashboard)
 - Main overview page component: `src/features/overview/components/overview.tsx`.
 - Structure:
@@ -169,6 +191,23 @@ Keep it updated when structure or conventions change.
   similar to overview page.
 - Use shadcn/ui components from `src/components/ui`.
 - Prefer Tailwind utility classes, keep spacing consistent with dashboard pages.
+
+## Font Awesome sizing inside shadcn Button
+- `src/components/ui/button.tsx` applies `[_svg:not([class*='size-'])]:size-4`, which can clamp SVG icons.
+- Font Awesome SVGs scale via `font-size` / `size` prop (e.g. `size="2x"`).
+- Override the button's SVG width/height back to `1em` so FA sizing works.
+- Root layout already disables auto CSS injection for FA (`config.autoAddCss = false`).
+
+Example:
+```tsx
+<Button
+  size="icon"
+  variant="ghost"
+  className="h-10 w-10 ring-1 ring-white/60 [&_svg]:!h-[1em] [&_svg]:!w-[1em]"
+>
+  <FontAwesomeIcon icon={faPenToSquare} size="2x" />
+</Button>
+```
 
 ## Key components
 - `PageContainer`: standard page wrapper with optional scrolling.
