@@ -3,13 +3,17 @@ import { Toaster } from '@/components/ui/sonner';
 import { fontVariables } from '@/lib/font';
 import ThemeProvider from '@/components/layout/ThemeToggle/theme-provider';
 import { cn } from '@/lib/utils';
+import { config } from '@fortawesome/fontawesome-svg-core';
 import type { Metadata, Viewport } from 'next';
 import { cookies } from 'next/headers';
 import NextTopLoader from 'nextjs-toploader';
 import { NuqsAdapter } from 'nuqs/adapters/next/app';
 import RegisterSW from '@/components/pwa/register-sw';
+import '@fortawesome/fontawesome-svg-core/styles.css';
 import './globals.css';
 import './theme.css';
+
+config.autoAddCss = false;
 
 const META_THEME_COLORS = {
   light: '#ffffff',

@@ -1,5 +1,8 @@
 'use client';
 import * as React from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faPenToSquare } from '@fortawesome/free-regular-svg-icons';
+import { faXmark } from '@fortawesome/free-solid-svg-icons';
 import PageContainer from '@/components/layout/page-container';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -342,6 +345,9 @@ export default function IndividualPage() {
   const [activeTask, setActiveTask] = React.useState<MemberTask | null>(null);
   const [isTaskModalOpen, setIsTaskModalOpen] = React.useState(false);
   const [isSavingEdit, setIsSavingEdit] = React.useState(false);
+  const [deletingAgendaId, setDeletingAgendaId] = React.useState<string | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false);
+  const [taskToDelete, setTaskToDelete] = React.useState<MemberTask | null>(null);
   const [timeRecords, setTimeRecords] = React.useState<{id: string; type: string; timestamp: any}[]>([]);
   const [isBatingPonto, setIsBatingPonto] = React.useState(false);
   const [editStatus, setEditStatus] = React.useState(statusOptions[1]);
@@ -349,6 +355,8 @@ export default function IndividualPage() {
   const [isSavingAgenda, setIsSavingAgenda] = React.useState(false);
   const [weekTimeRecords, setWeekTimeRecords] = React.useState<{id: string; type: string; timestamp: any}[]>([]);
   const [currentRunningTime, setCurrentRunningTime] = React.useState(0);
+  const [hoveredTaskId, setHoveredTaskId] = React.useState<string | null>(null);
+  const [hoveredEditTaskId, setHoveredEditTaskId] = React.useState<string | null>(null);
   const [agendaForm, setAgendaForm] = React.useState({
     date: '',
     title: '',
@@ -859,6 +867,60 @@ export default function IndividualPage() {
     }
   };
 
+  const openDeleteAgendaTask = (task: MemberTask) => {
+    setTaskToDelete(task);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleDeleteAgendaTask = async () => {
+    if (!taskToDelete) {
+      return;
+    }
+    if (!firebaseDb || !memberId) {
+      toast.error('Membro nao encontrado.');
+      return;
+    }
+    setDeletingAgendaId(taskToDelete.id);
+    try {
+      const db = firebaseDb;
+      const memberRef = doc(db, 'members', memberId);
+      const memberSnapshot = await getDoc(memberRef);
+      if (!memberSnapshot.exists()) {
+        toast.error('Membro nao encontrado.');
+        return;
+      }
+
+      const memberData = memberSnapshot.data() as { agendaTasks?: MemberTask[] };
+      const existingAgenda = Array.isArray(memberData.agendaTasks)
+        ? memberData.agendaTasks
+        : [];
+      const nextAgenda = existingAgenda.filter((task) => task.id !== taskToDelete.id);
+
+      await updateDoc(memberRef, {
+        agendaTasks: nextAgenda,
+        updatedAt: serverTimestamp()
+      });
+
+      const nextLocalAgenda = agendaTasks.filter((task) => task.id !== taskToDelete.id);
+      setAgendaTasks(nextLocalAgenda);
+      storeMemberCache(memberId, buildMemberCache({ agendaTasks: nextLocalAgenda }));
+
+      if (activeTask?.id === taskToDelete.id) {
+        setIsTaskModalOpen(false);
+        setActiveTask(null);
+      }
+
+      toast.success('Tarefa removida.');
+      setIsDeleteModalOpen(false);
+      setTaskToDelete(null);
+    } catch (error) {
+      console.error('Falha ao remover tarefa da agenda:', error);
+      toast.error('Nao foi possivel remover a tarefa.');
+    } finally {
+      setDeletingAgendaId(null);
+    }
+  };
+
   const handleBaterPonto = async () => {
     if (!firebaseDb || !memberId) return;
 
@@ -1032,6 +1094,7 @@ export default function IndividualPage() {
                       <Accordion type='single' collapsible className='w-full'>
                         {allTasks.map((task) => (
                           <AccordionItem key={task.id} value={task.id}>
+                            
                             <AccordionTrigger className='hover:no-underline py-3'>
                               <div className='flex items-start justify-between gap-2 w-full pr-2'>
                                 <div className='flex flex-col items-start text-left'>
@@ -1040,21 +1103,51 @@ export default function IndividualPage() {
                                   </span>
                                   <span className='text-muted-foreground text-xs'>
                                     {task.due}
+                                    
                                   </span>
                                 </div>
-                                <div className='flex flex-col items-end gap-1 flex-shrink-0'>
+                                <div className='flex flex-col items-end gap-1 shrink-0'>
                                   <Badge className={`${statusStyles[task.status]} text-[10px] px-1.5 py-0`}>
                                     {task.status}
+                                    
                                   </Badge>
                                   <Badge className={`${priorityStyles[task.priority]} text-[10px] px-1.5 py-0`}>
                                     {task.priority}
+                                    
                                   </Badge>
                                 </div>
                               </div>
                             </AccordionTrigger>
                             <AccordionContent>
                               <div className='space-y-2 pt-2'>
-                                <div className='flex justify-end'>
+                                <div className='flex justify-end gap-2'>
+                                  {task.source === 'agenda' ? (
+                                    <Button
+                                      onClick={() => handleTaskClick(task)}
+                                      size='sm'
+                                      variant='secondary'
+                                      className='border border-white'
+                                    >
+                                      <FontAwesomeIcon
+                                        icon={faPenToSquare}
+                                        className='mr-2 h-3 w-3'
+                                      />
+                                      Editar
+                                    </Button>
+                                  ) : null}
+                                  {task.source === 'agenda' ? (
+                                    <Button
+                                      onClick={() => openDeleteAgendaTask(task)}
+                                      size='sm'
+                                      variant='destructive'
+                                    >
+                                      <FontAwesomeIcon
+                                        icon={faXmark}
+                                        className='mr-2 h-3 w-3'
+                                      />
+                                      Excluir
+                                    </Button>
+                                  ) : null}
                                   <Button
                                     onClick={() => handleTaskClick(task)}
                                     size='sm'
@@ -1436,19 +1529,37 @@ export default function IndividualPage() {
                     </div>
                   ) : (
                     allTasks.map((task) => (
-                      <button
+                      <div
                         key={task.id}
-                        type='button'
                         onClick={() => handleTaskClick(task)}
-                        className='hover:bg-accent focus-visible:ring-ring/50 w-full cursor-pointer rounded-md border p-3 text-left transition-colors focus-visible:ring-[3px] focus-visible:outline-none'
+                        role='button'
+                        tabIndex={0}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            handleTaskClick(task);
+                          }
+                        }}
+                        onMouseEnter={() => setHoveredTaskId(task.id)}
+                        onMouseLeave={() => {
+                          setHoveredTaskId(null);
+                          setHoveredEditTaskId(null);
+                        }}
+                        className={`focus-visible:ring-ring/50 w-full rounded-md border p-3 text-left transition-colors focus-visible:ring-[3px] focus-visible:outline-none ${
+                          hoveredTaskId === task.id && hoveredEditTaskId !== task.id
+                            ? 'bg-accent'
+                            : ''
+                        }`}
                       >
-                        <div className='flex items-start justify-between gap-3'>
+                        
+                        <div className='flex items-center justify-between gap-3'>
                           <div className='flex flex-col'>
                             <span className='text-sm font-medium'>
                               {task.title}
                             </span>
                             <span className='text-muted-foreground text-xs'>
                               Prazo: {task.due}
+                              
                             </span>
                             {task.description ? (
                               <span className='text-muted-foreground text-justify text-xs line-clamp-2 break-all'>
@@ -1456,16 +1567,53 @@ export default function IndividualPage() {
                               </span>
                             ) : null}
                           </div>
-                          <div className='flex flex-col items-end gap-1'>
-                            <Badge className={statusStyles[task.status]}>
-                              {task.status}
-                            </Badge>
-                            <Badge className={priorityStyles[task.priority]}>
-                              {task.priority}
-                            </Badge>
+                          <div className='ml-auto flex items-center gap-2'>
+                            {task.source === 'agenda' ? (
+                              <div className='flex items-center gap-1'>
+                                <Button
+                                  type='button'
+                                  size='icon'
+                                  variant='ghost'
+                                  className='h-7 w-7 border border-white cursor-pointer self-center'
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    handleTaskClick(task);
+                                  }}
+                                  onMouseEnter={() => setHoveredEditTaskId(task.id)}
+                                  onMouseLeave={() => setHoveredEditTaskId(null)}
+                                  aria-label='Editar tarefa da agenda'
+                                >
+                                  <FontAwesomeIcon icon={faPenToSquare} className='h-3 w-3' />
+                                </Button>
+                                <Button
+                                  type='button'
+                                  size='icon'
+                                  variant='ghost'
+                                  className='h-7 w-7 border border-white cursor-pointer self-center'
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    openDeleteAgendaTask(task);
+                                  }}
+                                  onMouseEnter={() => setHoveredEditTaskId(task.id)}
+                                  onMouseLeave={() => setHoveredEditTaskId(null)}
+                                  aria-label='Excluir tarefa da agenda'
+                                >
+                                  <FontAwesomeIcon icon={faXmark} className='h-3 w-3' />
+                                </Button>
+                              </div>
+                            ) : null}
+                            <div className='flex flex-col items-end gap-1'>
+                              <Badge className={statusStyles[task.status]}>
+                                {task.status}
+                              </Badge>
+                              <Badge className={priorityStyles[task.priority]}>
+                                {task.priority}
+                              </Badge>
+                            </div>
+                            
                           </div>
                         </div>
-                      </button>
+                      </div>
                     ))
                   )}
                 </div>
@@ -1933,6 +2081,38 @@ export default function IndividualPage() {
               </Button>
             </DialogFooter>
           ) : null}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+        <DialogContent className='max-w-[95vw] sm:max-w-md'>
+          <DialogHeader>
+            <DialogTitle>Excluir tarefa</DialogTitle>
+            <DialogDescription>
+              Esta acao nao pode ser desfeita. Deseja excluir{' '}
+              <span className='font-medium'>
+                {taskToDelete?.title || 'esta tarefa'}
+              </span>
+              ?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className='gap-2 sm:gap-0'>
+            <Button
+              type='button'
+              variant='secondary'
+              onClick={() => setIsDeleteModalOpen(false)}
+              disabled={Boolean(deletingAgendaId)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type='button'
+              variant='destructive'
+              onClick={handleDeleteAgendaTask}
+              disabled={Boolean(deletingAgendaId)}
+            >
+              {deletingAgendaId ? 'Excluindo...' : 'Excluir'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </PageContainer>

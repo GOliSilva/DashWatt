@@ -25,15 +25,12 @@ import { toast } from 'sonner';
 import { firebaseDb } from '@/lib/firebase/client';
 
 const sectors = [
-  'Desenvolvimento',
-  'Design',
+  'Automação',
+  'Elétrica',
+  'Comercial',
+  'Institucional',
   'Marketing',
-  'Vendas',
-  'Suporte',
-  'Financeiro',
-  'Recursos Humanos',
-  'Administrativo',
-  'Outro'
+  'Executivo'
 ];
 
 export default function OnboardingPage() {
