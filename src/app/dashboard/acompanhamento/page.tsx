@@ -36,6 +36,12 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger
+} from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PieGraph } from '@/features/overview/components/pie-graph';
 import { firebaseDb } from '@/lib/firebase/client';
@@ -304,19 +310,22 @@ export default function AcompanhamentoPage() {
     }));
   }, [contextMembers]);
 
-  const occupancyMetrics = React.useMemo(() => {
-    const normalizeSector = (value?: string) =>
+  const normalizeValue = React.useCallback(
+    (value?: string) =>
       value
         ?.toLowerCase()
         .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '') ?? '';
+        .replace(/[\u0300-\u036f]/g, '') ?? '',
+    []
+  );
 
+  const occupancyMetrics = React.useMemo(() => {
     const isGeneral = areaFilter === 'Geral';
-    const selectedSector = normalizeSector(areaFilter);
+    const selectedSector = normalizeValue(areaFilter);
     const scopedMembers = isGeneral
       ? contextMembers
       : contextMembers.filter(
-          (member) => normalizeSector(member.sector) === selectedSector
+          (member) => normalizeValue(member.sector) === selectedSector
         );
 
     const memberIds = new Set(scopedMembers.map((member) => member.id));
@@ -366,7 +375,7 @@ export default function AcompanhamentoPage() {
       availableCount,
       occupiedPercent
     };
-  }, [areaFilter, contextMembers, contextProjects]);
+  }, [areaFilter, contextMembers, contextProjects, normalizeValue]);
 
   const occupancyChartData = React.useMemo(
     () => [
@@ -405,7 +414,8 @@ export default function AcompanhamentoPage() {
     const statusMatches =
       statusFilter === 'Todos' || project.status === statusFilter;
     const areaMatches =
-      areaFilter === 'Geral' || project.area === areaFilter;
+      areaFilter === 'Geral' ||
+      normalizeValue(project.area) === normalizeValue(areaFilter);
 
     return statusMatches && areaMatches;
   });
@@ -546,6 +556,513 @@ export default function AcompanhamentoPage() {
     }
   };
 
+  const areaFilterControl = (
+    <Select value={areaFilter} onValueChange={setAreaFilter}>
+      <SelectTrigger className='h-8 w-40' aria-label='Filtrar area'>
+        <SelectValue placeholder='Area' />
+      </SelectTrigger>
+      <SelectContent align='end'>
+        <SelectItem value='Geral'>Geral</SelectItem>
+        {areaOptions.map((area) => (
+          <SelectItem key={area} value={area}>
+            {area}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+
+  const projectsCard = (
+    <Card className='h-105'>
+      <CardHeader>
+        <CardTitle>Projetos em acompanhamento</CardTitle>
+        <CardDescription>Lista priorizada com status</CardDescription>
+        <CardAction>
+          <div className='flex items-center gap-2'>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger
+                className='h-8 w-40'
+                aria-label='Filtrar por status'
+              >
+                <SelectValue placeholder='Status' />
+              </SelectTrigger>
+              <SelectContent align='end'>
+                {statusOptions.map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {status}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Dialog
+              open={isDialogOpen}
+              onOpenChange={(open) => {
+                setIsDialogOpen(open);
+                if (!open) {
+                  resetProjectForm();
+                }
+              }}
+            >
+              <DialogTrigger asChild>
+                <Button size='sm'>Novo projeto</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>
+                    {editingProjectId ? 'Editar projeto' : 'Novo projeto'}
+                  </DialogTitle>
+                  <DialogDescription>
+                    {editingProjectId
+                      ? 'Atualize as informacoes principais do projeto.'
+                      : 'Adicione as informacoes principais do projeto.'}
+                  </DialogDescription>
+                </DialogHeader>
+                <form
+                  className='space-y-5'
+                  onSubmit={handleCreateProject}
+                >
+                  <div className='space-y-2'>
+                    <div className='text-muted-foreground text-xs font-semibold uppercase'>
+                      Resumo
+                    </div>
+                    <div className='grid gap-3 sm:grid-cols-2'>
+                      <Input
+                        placeholder='Nome do projeto'
+                        value={newProject.name}
+                        disabled={isSaving}
+                        className='sm:col-span-2'
+                        onChange={(event) =>
+                          setNewProject((current) => ({
+                            ...current,
+                            name: event.target.value
+                          }))
+                        }
+                      />
+                      <Input
+                        placeholder='Cliente'
+                        value={newProject.client}
+                        disabled={isSaving}
+                        className='sm:col-span-2'
+                        onChange={(event) =>
+                          setNewProject((current) => ({
+                            ...current,
+                            client: event.target.value
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className='space-y-2'>
+                    <div className='text-muted-foreground text-xs font-semibold uppercase'>
+                      Gestao
+                    </div>
+                    <div className='grid gap-3 sm:grid-cols-2'>
+                      <Select
+                        value={newProject.managerId}
+                        disabled={
+                          isSaving ||
+                          isDataLoading ||
+                          leadershipMembers.length === 0
+                        }
+                        onValueChange={(value) => {
+                          const selected = leadershipMembers.find(
+                            (member) => member.id === value
+                          );
+                          setNewProject((current) => ({
+                            ...current,
+                            managerId: value,
+                            manager: selected?.name ?? ''
+                          }));
+                        }}
+                      >
+                        <SelectTrigger aria-label='Responsavel'>
+                          <SelectValue
+                            placeholder={
+                              leadershipMembers.length === 0
+                                ? 'Sem usuarios'
+                                : 'Responsavel'
+                            }
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {leadershipMembers.map((member) => (
+                            <SelectItem key={member.id} value={member.id}>
+                              {member.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Select
+                        value={newProject.status}
+                        disabled={isSaving}
+                        onValueChange={(value) =>
+                          setNewProject((current) => ({
+                            ...current,
+                            status: value
+                          }))
+                        }
+                      >
+                        <SelectTrigger aria-label='Status do projeto'>
+                          <SelectValue placeholder='Status' />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {projectStatusOptions.map((status) => (
+                            <SelectItem key={status} value={status}>
+                              {status}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className='grid gap-3 sm:grid-cols-3'>
+                      <Select
+                        value={newProject.health}
+                        disabled={isSaving}
+                        onValueChange={(value) =>
+                          setNewProject((current) => ({
+                            ...current,
+                            health: value
+                          }))
+                        }
+                      >
+                        <SelectTrigger aria-label='Saude do projeto'>
+                          <SelectValue placeholder='Saude' />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {healthOptions.map((health) => (
+                            <SelectItem key={health} value={health}>
+                              {health}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className='grid gap-3 sm:grid-cols-2'>
+                      <Select
+                        value={newProject.area}
+                        disabled={isSaving}
+                        onValueChange={(value) => {
+                          const novosTipos =
+                            value === 'Automação'
+                              ? tiposAutomacao
+                              : tiposEletrica;
+                          setNewProject((current) => ({
+                            ...current,
+                            area: value,
+                            tipo: novosTipos[0]
+                          }));
+                        }}
+                      >
+                        <SelectTrigger aria-label='Area do projeto'>
+                          <SelectValue placeholder='Area' />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {areaOptions.map((area) => (
+                            <SelectItem key={area} value={area}>
+                              {area}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Select
+                        value={newProject.tipo}
+                        disabled={isSaving}
+                        onValueChange={(value) =>
+                          setNewProject((current) => ({
+                            ...current,
+                            tipo: value
+                          }))
+                        }
+                      >
+                        <SelectTrigger aria-label='Tipo do projeto'>
+                          <SelectValue placeholder='Tipo' />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(newProject.area === 'Automação'
+                            ? tiposAutomacao
+                            : tiposEletrica
+                          ).map((tipo) => (
+                            <SelectItem key={tipo} value={tipo}>
+                              {tipo}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className='space-y-2'>
+                    <div className='text-muted-foreground text-xs font-semibold uppercase'>
+                      Cronograma
+                    </div>
+                    <div className='grid gap-3 sm:grid-cols-2'>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            type='button'
+                            variant='outline'
+                            disabled={isSaving}
+                            className={`w-full justify-between ${
+                              startDate ? '' : 'text-muted-foreground'
+                            }`}
+                          >
+                            {startDate
+                              ? format(startDate, 'dd/MM/yyyy')
+                              : 'Inicio do projeto'}
+                            <CalendarIcon className='ml-2 h-4 w-4 opacity-50' />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className='w-auto p-0' align='start'>
+                          <Calendar
+                            mode='single'
+                            selected={startDate}
+                            onSelect={(date) => {
+                              setStartDate(date);
+                              setNewProject((current) => ({
+                                ...current,
+                                start: date ? format(date, 'dd/MM/yyyy') : ''
+                              }));
+                            }}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <Input
+                        placeholder='Proximo marco'
+                        value={newProject.next}
+                        disabled={isSaving}
+                        onChange={(event) =>
+                          setNewProject((current) => ({
+                            ...current,
+                            next: event.target.value
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className='space-y-2'>
+                    <div className='text-muted-foreground text-xs font-semibold uppercase'>
+                      Financeiro
+                    </div>
+                    <Input
+                      placeholder='Valor'
+                      value={newProject.value}
+                      disabled={isSaving}
+                      onChange={(event) =>
+                        setNewProject((current) => ({
+                          ...current,
+                          value: event.target.value
+                        }))
+                      }
+                    />
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      type='button'
+                      variant='outline'
+                      onClick={() => setIsDialogOpen(false)}
+                      disabled={isSaving}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button type='submit' disabled={isSaving}>
+                      {isSaving
+                        ? 'Salvando...'
+                        : editingProjectId
+                          ? 'Salvar alteracoes'
+                          : 'Criar projeto'}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </CardAction>
+      </CardHeader>
+      <CardContent>
+        <ScrollArea className='h-64 pr-3'>
+          <div className='space-y-2'>
+            {isDataLoading ? (
+              <div className='space-y-2'>
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <div key={`project-skeleton-${index}`} className='rounded-md border p-3'>
+                    <Skeleton className='h-4 w-2/3' />
+                    <Skeleton className='mt-2 h-3 w-1/2' />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              filteredProjects.map((project) => (
+                <div
+                  key={project.id}
+                  role='button'
+                  tabIndex={0}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      router.push(`/dashboard/acompanhamento/projetos/${project.id}`);
+                    }
+                  }}
+                  onClick={() => router.push(`/dashboard/acompanhamento/projetos/${project.id}`)}
+                  className='hover:bg-accent focus-visible:ring-ring/50 flex w-full items-start justify-between gap-3 rounded-md border p-3 text-left transition-colors focus-visible:ring-[3px] focus-visible:outline-none'
+                >
+                  <div className='flex flex-col'>
+                    <span className='text-sm font-medium'>
+                      {project.name}
+                    </span>
+                    <span className='text-muted-foreground text-xs'>
+                      {project.status} - Atualizado {project.updated}
+                    </span>
+                  </div>
+                  <div className='ml-auto flex items-start gap-2'>
+                    <div className='flex flex-col items-end gap-1'>
+                      <span className='text-muted-foreground text-[10px] uppercase'>
+                        {project.area || '--'}
+                      </span>
+                      <Badge variant='outline'>{project.health}</Badge>
+                    </div>
+                    <div className='flex items-center gap-1'>
+                      <Button
+                        type='button'
+                        size='icon'
+                        variant='ghost'
+                        className='h-9 w-9 cursor-pointer self-center rounded-md border hover:bg-white/10 [&_svg]:!h-[1em] [&_svg]:!w-[1em]'
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          openEditProject(project);
+                        }}
+                        aria-label='Editar projeto'
+                      >
+                        <FontAwesomeIcon icon={faPenToSquare} size='lg' />
+                      </Button>
+                      <Button
+                        type='button'
+                        size='icon'
+                        variant='ghost'
+                        className='h-9 w-9 cursor-pointer self-center rounded-md border hover:bg-white/10 [&_svg]:!h-[1em] [&_svg]:!w-[1em]'
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          openDeleteProject(project);
+                        }}
+                        aria-label='Excluir projeto'
+                      >
+                        <FontAwesomeIcon icon={faXmark} size='lg' />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </ScrollArea>
+      </CardContent>
+    </Card>
+  );
+
+  const occupancyCard = (
+    <div className='h-105 [&>div]:h-full'>
+      {isDataLoading ? (
+        <Skeleton className='h-full w-full' />
+      ) : (
+        <PieGraph
+          title='Membros ocupados'
+          description='Percentual de membros ocupados'
+          shortDescription='Ocupacao da equipe'
+          data={occupancyChartData}
+          config={{
+            ocupados: {
+              label: 'Ocupados',
+              color: 'var(--primary)'
+            },
+            livres: {
+              label: 'Livres',
+              color: 'var(--muted-foreground)'
+            }
+          }}
+          contentClassName='px-2 pt-0 sm:px-6 sm:pt-0'
+          centerValue={`${occupancyMetrics.occupiedPercent}%`}
+          centerLabel='Ocupados'
+        />
+      )}
+    </div>
+  );
+
+  const membersCard = (
+    <Card className='h-105'>
+      <CardHeader>
+        <CardTitle>Membros da equipe</CardTitle>
+        <CardDescription>Ultima atividade registrada</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ScrollArea className='h-64 pr-3'>
+          <div className='space-y-2'>
+            {isDataLoading ? (
+              <div className='space-y-2'>
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <div key={`member-skeleton-${index}`} className='rounded-md border p-3'>
+                    <Skeleton className='h-4 w-1/2' />
+                    <Skeleton className='mt-2 h-3 w-2/3' />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              memberList.map((member) => (
+                <Link
+                  key={member.id}
+                  href={`/dashboard/acompanhamento/membros/${member.id}`}
+                  className='hover:bg-accent focus-visible:ring-ring/50 flex w-full items-start justify-between gap-3 rounded-md border p-3 text-left transition-colors focus-visible:ring-[3px] focus-visible:outline-none'
+                >
+                  <div className='flex flex-col'>
+                    <span className='text-sm font-medium'>
+                      {member.name}
+                    </span>
+                    <span className='text-muted-foreground text-xs'>
+                      {member.role} - {member.activity}
+                    </span>
+                  </div>
+                  <Badge variant='outline'>
+                    {member.sector || '--'}
+                  </Badge>
+                </Link>
+              ))
+            )}
+          </div>
+        </ScrollArea>
+      </CardContent>
+    </Card>
+  );
+
+  const alertsCard = (
+    <Card className='h-full'>
+      <CardHeader>
+        <CardTitle>Alertas recentes</CardTitle>
+        <CardDescription>Eventos que exigem atencao</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className='space-y-3'>
+          {alerts.map((alert) => (
+            <div
+              key={alert.id}
+              className='flex items-start justify-between gap-3 rounded-md border p-3'
+            >
+              <div className='flex flex-col'>
+                <span className='text-sm font-medium'>{alert.title}</span>
+                <span className='text-muted-foreground text-xs'>
+                  {alert.detail}
+                </span>
+                <span className='text-muted-foreground text-xs'>
+                  {alert.time}
+                </span>
+              </div>
+              <Badge className={alertLevelStyles[alert.level]}>
+                {alert.level}
+              </Badge>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   const handleCreateMember = async (
     event: React.FormEvent<HTMLFormElement>
   ) => {
@@ -612,502 +1129,39 @@ export default function AcompanhamentoPage() {
     <PageContainer
       pageTitle='Acompanhamento'
       pageDescription='Visao geral das frentes em andamento'
-      pageHeaderAction={
-        <Select value={areaFilter} onValueChange={setAreaFilter}>
-          <SelectTrigger className='h-8 w-40' aria-label='Filtrar area'>
-            <SelectValue placeholder='Area' />
-          </SelectTrigger>
-          <SelectContent align='end'>
-            <SelectItem value='Geral'>Geral</SelectItem>
-            {areaOptions.map((area) => (
-              <SelectItem key={area} value={area}>
-                {area}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      }
+      pageHeaderAction={areaFilterControl}
+      hideHeaderOnMobile
     >
-      <div className='flex flex-1 flex-col space-y-4'>
-        <div className='*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 *:data-[slot=card]:bg-linear-to-t *:data-[slot=card]:shadow-xs lg:grid-cols-2'>
-          <Card className='h-105'>
-            <CardHeader>
-              <CardTitle>Projetos em acompanhamento</CardTitle>
-              <CardDescription>Lista priorizada com status</CardDescription>
-              <CardAction>
-                <div className='flex items-center gap-2'>
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger
-                      className='h-8 w-40'
-                      aria-label='Filtrar por status'
-                    >
-                      <SelectValue placeholder='Status' />
-                    </SelectTrigger>
-                    <SelectContent align='end'>
-                      {statusOptions.map((status) => (
-                        <SelectItem key={status} value={status}>
-                          {status}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Dialog
-                    open={isDialogOpen}
-                    onOpenChange={(open) => {
-                      setIsDialogOpen(open);
-                      if (!open) {
-                        resetProjectForm();
-                      }
-                    }}
-                  >
-                    <DialogTrigger asChild>
-                      <Button size='sm'>Novo projeto</Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>
-                          {editingProjectId ? 'Editar projeto' : 'Novo projeto'}
-                        </DialogTitle>
-                        <DialogDescription>
-                          {editingProjectId
-                            ? 'Atualize as informacoes principais do projeto.'
-                            : 'Adicione as informacoes principais do projeto.'}
-                        </DialogDescription>
-                      </DialogHeader>
-                      <form
-                        className='space-y-5'
-                        onSubmit={handleCreateProject}
-                      >
-                        <div className='space-y-2'>
-                          <div className='text-muted-foreground text-xs font-semibold uppercase'>
-                            Resumo
-                          </div>
-                          <div className='grid gap-3 sm:grid-cols-2'>
-                            <Input
-                              placeholder='Nome do projeto'
-                              value={newProject.name}
-                              disabled={isSaving}
-                              className='sm:col-span-2'
-                              onChange={(event) =>
-                                setNewProject((current) => ({
-                                  ...current,
-                                  name: event.target.value
-                                }))
-                              }
-                            />
-                            <Input
-                              placeholder='Cliente'
-                              value={newProject.client}
-                              disabled={isSaving}
-                              className='sm:col-span-2'
-                              onChange={(event) =>
-                                setNewProject((current) => ({
-                                  ...current,
-                                  client: event.target.value
-                                }))
-                              }
-                            />
-                          </div>
-                        </div>
-                        <div className='space-y-2'>
-                          <div className='text-muted-foreground text-xs font-semibold uppercase'>
-                            Gestao
-                          </div>
-                          <div className='grid gap-3 sm:grid-cols-2'>
-                            <Select
-                              value={newProject.managerId}
-                              disabled={
-                                isSaving ||
-                                isDataLoading ||
-                                leadershipMembers.length === 0
-                              }
-                              onValueChange={(value) => {
-                                const selected = leadershipMembers.find(
-                                  (member) => member.id === value
-                                );
-                                setNewProject((current) => ({
-                                  ...current,
-                                  managerId: value,
-                                  manager: selected?.name ?? ''
-                                }));
-                              }}
-                            >
-                              <SelectTrigger aria-label='Responsavel'>
-                                <SelectValue
-                                  placeholder={
-                                    leadershipMembers.length === 0
-                                      ? 'Sem usuarios'
-                                      : 'Responsavel'
-                                  }
-                                />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {leadershipMembers.map((member) => (
-                                  <SelectItem key={member.id} value={member.id}>
-                                    {member.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <Select
-                              value={newProject.status}
-                              disabled={isSaving}
-                              onValueChange={(value) =>
-                                setNewProject((current) => ({
-                                  ...current,
-                                  status: value
-                                }))
-                              }
-                            >
-                              <SelectTrigger aria-label='Status do projeto'>
-                                <SelectValue placeholder='Status' />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {projectStatusOptions.map((status) => (
-                                  <SelectItem key={status} value={status}>
-                                    {status}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className='grid gap-3 sm:grid-cols-3'>
-                            <Select
-                              value={newProject.health}
-                              disabled={isSaving}
-                              onValueChange={(value) =>
-                                setNewProject((current) => ({
-                                  ...current,
-                                  health: value
-                                }))
-                              }
-                            >
-                              <SelectTrigger aria-label='Saude do projeto'>
-                                <SelectValue placeholder='Saude' />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {healthOptions.map((health) => (
-                                  <SelectItem key={health} value={health}>
-                                    {health}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className='grid gap-3 sm:grid-cols-2'>
-                            <Select
-                              value={newProject.area}
-                              disabled={isSaving}
-                              onValueChange={(value) => {
-                                const novosTipos = value === 'Automacao' ? tiposAutomacao : tiposEletrica;
-                                setNewProject((current) => ({
-                                  ...current,
-                                  area: value,
-                                  tipo: novosTipos[0]
-                                }));
-                              }}
-                            >
-                              <SelectTrigger aria-label='Area do projeto'>
-                                <SelectValue placeholder='Area' />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {areaOptions.map((area) => (
-                                  <SelectItem key={area} value={area}>
-                                    {area}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <Select
-                              value={newProject.tipo}
-                              disabled={isSaving}
-                              onValueChange={(value) =>
-                                setNewProject((current) => ({
-                                  ...current,
-                                  tipo: value
-                                }))
-                              }
-                            >
-                              <SelectTrigger aria-label='Tipo do projeto'>
-                                <SelectValue placeholder='Tipo' />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {(newProject.area === 'Automacao' ? tiposAutomacao : tiposEletrica).map((tipo) => (
-                                  <SelectItem key={tipo} value={tipo}>
-                                    {tipo}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                        <div className='space-y-2'>
-                          <div className='text-muted-foreground text-xs font-semibold uppercase'>
-                            Cronograma
-                          </div>
-                          <div className='grid gap-3 sm:grid-cols-2'>
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <Button
-                                  type='button'
-                                  variant='outline'
-                                  disabled={isSaving}
-                                  className={`w-full justify-between ${
-                                    startDate ? '' : 'text-muted-foreground'
-                                  }`}
-                                >
-                                  {startDate
-                                    ? format(startDate, 'dd/MM/yyyy')
-                                    : 'Inicio do projeto'}
-                                  <CalendarIcon className='ml-2 h-4 w-4 opacity-50' />
-                                </Button>
-                              </PopoverTrigger>
-                              <PopoverContent className='w-auto p-0' align='start'>
-                                <Calendar
-                                  mode='single'
-                                  selected={startDate}
-                                  onSelect={(date) => {
-                                    setStartDate(date);
-                                    setNewProject((current) => ({
-                                      ...current,
-                                      start: date
-                                        ? format(date, 'dd/MM/yyyy')
-                                        : ''
-                                    }));
-                                  }}
-                                  initialFocus
-                                />
-                              </PopoverContent>
-                            </Popover>
-                            <Input
-                              placeholder='Proximo marco'
-                              value={newProject.next}
-                              disabled={isSaving}
-                              onChange={(event) =>
-                                setNewProject((current) => ({
-                                  ...current,
-                                  next: event.target.value
-                                }))
-                              }
-                            />
-                          </div>
-                        </div>
-                        <div className='space-y-2'>
-                          <div className='text-muted-foreground text-xs font-semibold uppercase'>
-                            Financeiro
-                          </div>
-                          <Input
-                            placeholder='Valor'
-                            value={newProject.value}
-                            disabled={isSaving}
-                            onChange={(event) =>
-                              setNewProject((current) => ({
-                                ...current,
-                                value: event.target.value
-                              }))
-                            }
-                          />
-                        </div>
-                        <DialogFooter>
-                          <Button
-                            type='button'
-                            variant='outline'
-                            onClick={() => setIsDialogOpen(false)}
-                            disabled={isSaving}
-                          >
-                            Cancelar
-                          </Button>
-                          <Button type='submit' disabled={isSaving}>
-                            {isSaving
-                              ? 'Salvando...'
-                              : editingProjectId
-                                ? 'Salvar alteracoes'
-                                : 'Criar projeto'}
-                          </Button>
-                        </DialogFooter>
-                      </form>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              </CardAction>
-            </CardHeader>
-            <CardContent>
-              <ScrollArea className='h-64 pr-3'>
-                <div className='space-y-2'>
-                  {isDataLoading ? (
-                    <div className='space-y-2'>
-                      {Array.from({ length: 4 }).map((_, index) => (
-                        <div key={`project-skeleton-${index}`} className='rounded-md border p-3'>
-                          <Skeleton className='h-4 w-2/3' />
-                          <Skeleton className='mt-2 h-3 w-1/2' />
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    filteredProjects.map((project) => (
-                      <div
-                        key={project.id}
-                        role='button'
-                        tabIndex={0}
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter' || event.key === ' ') {
-                            event.preventDefault();
-                            router.push(`/dashboard/acompanhamento/projetos/${project.id}`);
-                          }
-                        }}
-                        onClick={() => router.push(`/dashboard/acompanhamento/projetos/${project.id}`)}
-                        className='hover:bg-accent focus-visible:ring-ring/50 flex w-full items-start justify-between gap-3 rounded-md border p-3 text-left transition-colors focus-visible:ring-[3px] focus-visible:outline-none'
-                      >
-                        <div className='flex flex-col'>
-                          <span className='text-sm font-medium'>
-                            {project.name}
-                          </span>
-                          <span className='text-muted-foreground text-xs'>
-                            {project.status} - Atualizado {project.updated}
-                          </span>
-                        </div>
-                        <div className='ml-auto flex items-start gap-2'>
-                          <div className='flex flex-col items-end gap-1'>
-                            <span className='text-muted-foreground text-[10px] uppercase'>
-                              {project.area || '--'}
-                            </span>
-                            <Badge variant='outline'>{project.health}</Badge>
-                          </div>
-                          <div className='flex items-center gap-1'>
-                            <Button
-                              type='button'
-                              size='icon'
-                              variant='ghost'
-                              className='h-9 w-9 cursor-pointer self-center rounded-md border hover:bg-white/10 [&_svg]:!h-[1em] [&_svg]:!w-[1em]'
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                openEditProject(project);
-                              }}
-                              aria-label='Editar projeto'
-                            >
-                              <FontAwesomeIcon icon={faPenToSquare} size='lg' />
-                            </Button>
-                            <Button
-                              type='button'
-                              size='icon'
-                              variant='ghost'
-                              className='h-9 w-9 cursor-pointer self-center rounded-md border hover:bg-white/10 [&_svg]:!h-[1em] [&_svg]:!w-[1em]'
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                openDeleteProject(project);
-                              }}
-                              aria-label='Excluir projeto'
-                            >
-                              <FontAwesomeIcon icon={faXmark} size='lg' />
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </ScrollArea>
-            </CardContent>
-          </Card>
+      <div className='flex flex-1 flex-col space-y-3 md:space-y-4'>
+        <div className='block lg:hidden'>
+          <div className='mb-3 flex justify-end'>{areaFilterControl}</div>
+          <Tabs defaultValue='projects' className='w-full'>
+            <TabsList className='grid w-full grid-cols-4 h-auto'>
+              <TabsTrigger value='projects' className='text-xs py-2'>Projetos</TabsTrigger>
+              <TabsTrigger value='occupancy' className='text-xs py-2'>Ocupacao</TabsTrigger>
+              <TabsTrigger value='members' className='text-xs py-2'>Membros</TabsTrigger>
+              <TabsTrigger value='alerts' className='text-xs py-2'>Alertas</TabsTrigger>
+            </TabsList>
+            <TabsContent value='projects' className='mt-3'>
+              {projectsCard}
+            </TabsContent>
+            <TabsContent value='occupancy' className='mt-3'>
+              {occupancyCard}
+            </TabsContent>
+            <TabsContent value='members' className='mt-3'>
+              {membersCard}
+            </TabsContent>
+            <TabsContent value='alerts' className='mt-3'>
+              {alertsCard}
+            </TabsContent>
+          </Tabs>
+        </div>
 
-          <div className='h-105 [&>div]:h-full'>
-            {isDataLoading ? (
-              <Skeleton className='h-full w-full' />
-            ) : (
-              <PieGraph
-                title='Membros ocupados'
-                description='Percentual de membros ocupados'
-                shortDescription='Ocupacao da equipe'
-                data={occupancyChartData}
-                config={{
-                  ocupados: {
-                    label: 'Ocupados',
-                    color: 'var(--primary)'
-                  },
-                  livres: {
-                    label: 'Livres',
-                    color: 'var(--muted-foreground)'
-                  }
-                }}
-                contentClassName='px-2 pt-0 sm:px-6 sm:pt-0'
-                centerValue={`${occupancyMetrics.occupiedPercent}%`}
-                centerLabel='Ocupados'
-              />
-            )}
-          </div>
-
-          <Card className='h-105'>
-            <CardHeader>
-              <CardTitle>Membros da equipe</CardTitle>
-              <CardDescription>Ultima atividade registrada</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ScrollArea className='h-64 pr-3'>
-                <div className='space-y-2'>
-                  {isDataLoading ? (
-                    <div className='space-y-2'>
-                      {Array.from({ length: 4 }).map((_, index) => (
-                        <div key={`member-skeleton-${index}`} className='rounded-md border p-3'>
-                          <Skeleton className='h-4 w-1/2' />
-                          <Skeleton className='mt-2 h-3 w-2/3' />
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    memberList.map((member) => (
-                      <Link
-                        key={member.id}
-                        href={`/dashboard/acompanhamento/membros/${member.id}`}
-                        className='hover:bg-accent focus-visible:ring-ring/50 flex w-full items-start justify-between gap-3 rounded-md border p-3 text-left transition-colors focus-visible:ring-[3px] focus-visible:outline-none'
-                      >
-                        <div className='flex flex-col'>
-                          <span className='text-sm font-medium'>
-                            {member.name}
-                          </span>
-                          <span className='text-muted-foreground text-xs'>
-                            {member.role} - {member.activity}
-                          </span>
-                        </div>
-                        <Badge variant='outline'>
-                          {member.sector || '--'}
-                        </Badge>
-                      </Link>
-                    ))
-                  )}
-                </div>
-              </ScrollArea>
-            </CardContent>
-          </Card>
-
-          <Card className='h-full'>
-            <CardHeader>
-              <CardTitle>Alertas recentes</CardTitle>
-              <CardDescription>Eventos que exigem atencao</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className='space-y-3'>
-                {alerts.map((alert) => (
-                  <div
-                    key={alert.id}
-                    className='flex items-start justify-between gap-3 rounded-md border p-3'
-                  >
-                    <div className='flex flex-col'>
-                      <span className='text-sm font-medium'>{alert.title}</span>
-                      <span className='text-muted-foreground text-xs'>
-                        {alert.detail}
-                      </span>
-                      <span className='text-muted-foreground text-xs'>
-                        {alert.time}
-                      </span>
-                    </div>
-                    <Badge className={alertLevelStyles[alert.level]}>
-                      {alert.level}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+        <div className='*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card hidden grid-cols-1 gap-4 *:data-[slot=card]:bg-linear-to-t *:data-[slot=card]:shadow-xs lg:grid lg:grid-cols-2'>
+          {projectsCard}
+          {occupancyCard}
+          {membersCard}
+          {alertsCard}
         </div>
       </div>
       <Dialog open={isDeleteProjectOpen} onOpenChange={setIsDeleteProjectOpen}>
