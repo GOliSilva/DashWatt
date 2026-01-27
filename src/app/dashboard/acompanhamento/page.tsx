@@ -305,7 +305,21 @@ export default function AcompanhamentoPage() {
   }, [contextMembers]);
 
   const occupancyMetrics = React.useMemo(() => {
-    const memberIds = new Set(contextMembers.map((member) => member.id));
+    const normalizeSector = (value?: string) =>
+      value
+        ?.toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '') ?? '';
+
+    const isGeneral = areaFilter === 'Geral';
+    const selectedSector = normalizeSector(areaFilter);
+    const scopedMembers = isGeneral
+      ? contextMembers
+      : contextMembers.filter(
+          (member) => normalizeSector(member.sector) === selectedSector
+        );
+
+    const memberIds = new Set(scopedMembers.map((member) => member.id));
     const occupiedIds = new Set<string>();
 
     contextProjects.forEach((project) => {
@@ -328,7 +342,7 @@ export default function AcompanhamentoPage() {
       });
     });
 
-    contextMembers.forEach((member) => {
+    scopedMembers.forEach((member) => {
       const agendaTasks = (member as any)?.agendaTasks as Array<{
         priority?: string;
       }> | undefined;
@@ -340,7 +354,7 @@ export default function AcompanhamentoPage() {
       }
     });
 
-    const totalMembers = contextMembers.length;
+    const totalMembers = scopedMembers.length;
     const occupiedCount = occupiedIds.size;
     const availableCount = Math.max(totalMembers - occupiedCount, 0);
     const occupiedPercent =
@@ -352,7 +366,7 @@ export default function AcompanhamentoPage() {
       availableCount,
       occupiedPercent
     };
-  }, [contextMembers, contextProjects]);
+  }, [areaFilter, contextMembers, contextProjects]);
 
   const occupancyChartData = React.useMemo(
     () => [
