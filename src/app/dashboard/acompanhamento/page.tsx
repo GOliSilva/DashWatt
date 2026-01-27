@@ -43,19 +43,25 @@ import { useFirebaseData } from '@/contexts/firebase-data-context';
 import {
   addDoc,
   collection,
+  deleteDoc,
   doc,
   getDocs,
   orderBy,
   query,
   serverTimestamp,
   setDoc,
-  Timestamp
+  Timestamp,
+  updateDoc
 } from 'firebase/firestore';
 import { FirebaseError } from 'firebase/app';
 import { format } from 'date-fns';
 import { CalendarIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Project as FirebaseProject, Member as FirebaseMember } from '@/contexts/firebase-data-context';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faPenToSquare } from '@fortawesome/free-regular-svg-icons';
+import { faXmark } from '@fortawesome/free-solid-svg-icons';
+import { useRouter } from 'next/navigation';
 
 type Project = {
   id: string;
@@ -122,7 +128,14 @@ const projectStatusOptions = statusOptions.filter(
   (status) => status !== 'Todos'
 );
 const healthOptions = ['Estavel', 'Atencao', 'Ok'];
-const areaOptions = ['Automacao', 'Eletrica'];
+const areaOptions = [
+  'Automação',
+  'Elétrica',
+  'Comercial',
+  'Institucional',
+  'Marketing',
+  'Executivo'
+];
 const tiposAutomacao = ['Domotica', 'Industrial'];
 const tiposEletrica = ['Projeto Eletrico', 'Solar'];
 const defaultMemberStatus = 'online';
@@ -134,11 +147,11 @@ const roleOptions = [
   'Presidente'
 ];
 const sectorOptions = [
-  'Automacao',
-  'Eletrica',
+  'Automação',
+  'Elétrica',
   'Comercial',
-  'Marketing',
   'Institucional',
+  'Marketing',
   'Executivo'
 ];
 
@@ -177,10 +190,15 @@ type MemberFormState = {
 };
 
 export default function AcompanhamentoPage() {
+  const router = useRouter();
   const { projects: contextProjects, members: contextMembers, isLoading: isDataLoading } = useFirebaseData();
   const [areaFilter, setAreaFilter] = React.useState('Geral');
   const [statusFilter, setStatusFilter] = React.useState('Todos');
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
+  const [editingProjectId, setEditingProjectId] = React.useState<string | null>(null);
+  const [isDeleteProjectOpen, setIsDeleteProjectOpen] = React.useState(false);
+  const [isDeletingProject, setIsDeletingProject] = React.useState(false);
+  const [projectToDelete, setProjectToDelete] = React.useState<Project | null>(null);
   const [isSaving, setIsSaving] = React.useState(false);
   const [leadershipMembers, setLeadershipMembers] = React.useState<Member[]>(
     []
@@ -188,6 +206,24 @@ export default function AcompanhamentoPage() {
   const [isMemberDialogOpen, setIsMemberDialogOpen] = React.useState(false);
   const [isSavingMember, setIsSavingMember] = React.useState(false);
   const [startDate, setStartDate] = React.useState<Date | undefined>(undefined);
+
+  const resetProjectForm = React.useCallback(() => {
+    setNewProject({
+      name: '',
+      status: projectStatusOptions[0],
+      health: healthOptions[2],
+      area: areaOptions[0],
+      tipo: tiposAutomacao[0],
+      client: '',
+      manager: leadershipMembers[0]?.name ?? '',
+      managerId: leadershipMembers[0]?.id ?? '',
+      start: '',
+      next: '',
+      value: ''
+    });
+    setStartDate(undefined);
+    setEditingProjectId(null);
+  }, [leadershipMembers]);
   const [newProject, setNewProject] = React.useState<ProjectFormState>({
     name: '',
     status: projectStatusOptions[0],
@@ -268,6 +304,64 @@ export default function AcompanhamentoPage() {
     }));
   }, [contextMembers]);
 
+  const occupancyMetrics = React.useMemo(() => {
+    const memberIds = new Set(contextMembers.map((member) => member.id));
+    const occupiedIds = new Set<string>();
+
+    contextProjects.forEach((project) => {
+      const activities = (project as any)?.Activities as Array<{
+        ownerId?: string;
+        status?: string;
+      }> | undefined;
+      if (!Array.isArray(activities)) return;
+
+      activities.forEach((activity) => {
+        const status = activity?.status ?? '';
+        if (
+          activity?.ownerId &&
+          memberIds.has(activity.ownerId) &&
+          status !== 'Bloqueado' &&
+          status !== 'Concluido'
+        ) {
+          occupiedIds.add(activity.ownerId);
+        }
+      });
+    });
+
+    contextMembers.forEach((member) => {
+      const agendaTasks = (member as any)?.agendaTasks as Array<{
+        priority?: string;
+      }> | undefined;
+      if (
+        Array.isArray(agendaTasks) &&
+        agendaTasks.some((task) => task?.priority === 'Alta')
+      ) {
+        occupiedIds.add(member.id);
+      }
+    });
+
+    const totalMembers = contextMembers.length;
+    const occupiedCount = occupiedIds.size;
+    const availableCount = Math.max(totalMembers - occupiedCount, 0);
+    const occupiedPercent =
+      totalMembers === 0 ? 0 : Math.round((occupiedCount / totalMembers) * 100);
+
+    return {
+      totalMembers,
+      occupiedCount,
+      availableCount,
+      occupiedPercent
+    };
+  }, [contextMembers, contextProjects]);
+
+  const occupancyChartData = React.useMemo(
+    () => [
+      { name: 'ocupados', value: occupancyMetrics.occupiedCount },
+      { name: 'livres', value: occupancyMetrics.availableCount }
+    ],
+    [occupancyMetrics]
+  );
+
   // Atualizar leadership members quando memberList mudar
   React.useEffect(() => {
     setLeadershipMembers(memberList.filter((member) => member.isLeadership));
@@ -301,6 +395,37 @@ export default function AcompanhamentoPage() {
 
     return statusMatches && areaMatches;
   });
+
+  const openEditProject = (project: Project) => {
+    const source = contextProjects.find((item) => item.id === project.id);
+    const startValue = source?.start?.toDate
+      ? source.start.toDate()
+      : source?.start instanceof Date
+        ? source.start
+        : undefined;
+
+    setEditingProjectId(project.id);
+    setNewProject({
+      name: project.name ?? '',
+      status: project.status ?? projectStatusOptions[0],
+      health: project.health ?? healthOptions[2],
+      area: project.area ?? areaOptions[0],
+      tipo: project.tipo ?? tiposAutomacao[0],
+      client: project.client ?? '',
+      manager: project.manager ?? '',
+      managerId: project.managerId ?? '',
+      start: '',
+      next: project.next ?? '',
+      value: project.value ?? ''
+    });
+    setStartDate(startValue);
+    setIsDialogOpen(true);
+  };
+
+  const openDeleteProject = (project: Project) => {
+    setProjectToDelete(project);
+    setIsDeleteProjectOpen(true);
+  };
 
   const handleCreateProject = async (
     event: React.FormEvent<HTMLFormElement>
@@ -355,32 +480,26 @@ export default function AcompanhamentoPage() {
       next: newProject.next.trim(),
       value: parseValueToNumber(newProject.value.trim()),
       updatedLabel: 'agora',
-      createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     };
 
     setIsSaving(true);
     try {
-      const docRef = await addDoc(
-        collection(firebaseDb, 'projects'),
-        projectPayload
-      );
-      // O contexto atualiza automaticamente via onSnapshot
-      toast.success('Projeto criado com sucesso.');
-      setNewProject({
-        name: '',
-        status: projectStatusOptions[0],
-        health: healthOptions[2],
-        area: areaOptions[0],
-        tipo: tiposAutomacao[0],
-        client: '',
-        manager: leadershipMembers[0]?.name ?? '',
-        managerId: leadershipMembers[0]?.id ?? '',
-        start: '',
-        next: '',
-        value: ''
-      });
-      setStartDate(undefined);
+      if (editingProjectId) {
+        const projectRef = doc(firebaseDb, 'projects', editingProjectId);
+        await updateDoc(projectRef, projectPayload);
+        toast.success('Projeto atualizado com sucesso.');
+      } else {
+        await addDoc(
+          collection(firebaseDb, 'projects'),
+          {
+            ...projectPayload,
+            createdAt: serverTimestamp()
+          }
+        );
+        toast.success('Projeto criado com sucesso.');
+      }
+      resetProjectForm();
       setIsDialogOpen(false);
     } catch (error) {
       console.error('Falha ao salvar projeto:', error);
@@ -391,6 +510,25 @@ export default function AcompanhamentoPage() {
       }
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleDeleteProject = async () => {
+    if (!firebaseDb || !projectToDelete) {
+      return;
+    }
+
+    setIsDeletingProject(true);
+    try {
+      await deleteDoc(doc(firebaseDb, 'projects', projectToDelete.id));
+      toast.success('Projeto removido.');
+      setIsDeleteProjectOpen(false);
+      setProjectToDelete(null);
+    } catch (error) {
+      console.error('Falha ao remover projeto:', error);
+      toast.error('Nao foi possivel remover o projeto.');
+    } finally {
+      setIsDeletingProject(false);
     }
   };
 
@@ -467,8 +605,11 @@ export default function AcompanhamentoPage() {
           </SelectTrigger>
           <SelectContent align='end'>
             <SelectItem value='Geral'>Geral</SelectItem>
-            <SelectItem value='Automacao'>Automacao</SelectItem>
-            <SelectItem value='Eletrica'>Eletrica</SelectItem>
+            {areaOptions.map((area) => (
+              <SelectItem key={area} value={area}>
+                {area}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       }
@@ -496,15 +637,27 @@ export default function AcompanhamentoPage() {
                       ))}
                     </SelectContent>
                   </Select>
-                  <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                  <Dialog
+                    open={isDialogOpen}
+                    onOpenChange={(open) => {
+                      setIsDialogOpen(open);
+                      if (!open) {
+                        resetProjectForm();
+                      }
+                    }}
+                  >
                     <DialogTrigger asChild>
                       <Button size='sm'>Novo projeto</Button>
                     </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
-                        <DialogTitle>Novo projeto</DialogTitle>
+                        <DialogTitle>
+                          {editingProjectId ? 'Editar projeto' : 'Novo projeto'}
+                        </DialogTitle>
                         <DialogDescription>
-                          Adicione as informacoes principais do projeto.
+                          {editingProjectId
+                            ? 'Atualize as informacoes principais do projeto.'
+                            : 'Adicione as informacoes principais do projeto.'}
                         </DialogDescription>
                       </DialogHeader>
                       <form
@@ -751,7 +904,11 @@ export default function AcompanhamentoPage() {
                             Cancelar
                           </Button>
                           <Button type='submit' disabled={isSaving}>
-                            {isSaving ? 'Salvando...' : 'Criar projeto'}
+                            {isSaving
+                              ? 'Salvando...'
+                              : editingProjectId
+                                ? 'Salvar alteracoes'
+                                : 'Criar projeto'}
                           </Button>
                         </DialogFooter>
                       </form>
@@ -774,9 +931,17 @@ export default function AcompanhamentoPage() {
                     </div>
                   ) : (
                     filteredProjects.map((project) => (
-                      <Link
+                      <div
                         key={project.id}
-                        href={`/dashboard/acompanhamento/projetos/${project.id}`}
+                        role='button'
+                        tabIndex={0}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            router.push(`/dashboard/acompanhamento/projetos/${project.id}`);
+                          }
+                        }}
+                        onClick={() => router.push(`/dashboard/acompanhamento/projetos/${project.id}`)}
                         className='hover:bg-accent focus-visible:ring-ring/50 flex w-full items-start justify-between gap-3 rounded-md border p-3 text-left transition-colors focus-visible:ring-[3px] focus-visible:outline-none'
                       >
                         <div className='flex flex-col'>
@@ -787,8 +952,43 @@ export default function AcompanhamentoPage() {
                             {project.status} - Atualizado {project.updated}
                           </span>
                         </div>
-                        <Badge variant='outline'>{project.health}</Badge>
-                      </Link>
+                        <div className='ml-auto flex items-start gap-2'>
+                          <div className='flex flex-col items-end gap-1'>
+                            <span className='text-muted-foreground text-[10px] uppercase'>
+                              {project.area || '--'}
+                            </span>
+                            <Badge variant='outline'>{project.health}</Badge>
+                          </div>
+                          <div className='flex items-center gap-1'>
+                            <Button
+                              type='button'
+                              size='icon'
+                              variant='ghost'
+                              className='h-9 w-9 cursor-pointer self-center rounded-md border hover:bg-white/10 [&_svg]:!h-[1em] [&_svg]:!w-[1em]'
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                openEditProject(project);
+                              }}
+                              aria-label='Editar projeto'
+                            >
+                              <FontAwesomeIcon icon={faPenToSquare} size='lg' />
+                            </Button>
+                            <Button
+                              type='button'
+                              size='icon'
+                              variant='ghost'
+                              className='h-9 w-9 cursor-pointer self-center rounded-md border hover:bg-white/10 [&_svg]:!h-[1em] [&_svg]:!w-[1em]'
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                openDeleteProject(project);
+                              }}
+                              aria-label='Excluir projeto'
+                            >
+                              <FontAwesomeIcon icon={faXmark} size='lg' />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
                     ))
                   )}
                 </div>
@@ -800,7 +1000,25 @@ export default function AcompanhamentoPage() {
             {isDataLoading ? (
               <Skeleton className='h-full w-full' />
             ) : (
-              <PieGraph />
+              <PieGraph
+                title='Membros ocupados'
+                description='Percentual de membros ocupados'
+                shortDescription='Ocupacao da equipe'
+                data={occupancyChartData}
+                config={{
+                  ocupados: {
+                    label: 'Ocupados',
+                    color: 'var(--primary)'
+                  },
+                  livres: {
+                    label: 'Livres',
+                    color: 'var(--muted-foreground)'
+                  }
+                }}
+                contentClassName='px-2 pt-0 sm:px-6 sm:pt-0'
+                centerValue={`${occupancyMetrics.occupiedPercent}%`}
+                centerLabel='Ocupados'
+              />
             )}
           </div>
 
@@ -836,8 +1054,8 @@ export default function AcompanhamentoPage() {
                             {member.role} - {member.activity}
                           </span>
                         </div>
-                        <Badge className={memberStatusStyles[member.status]}>
-                          {member.status}
+                        <Badge variant='outline'>
+                          {member.sector || '--'}
                         </Badge>
                       </Link>
                     ))
@@ -878,6 +1096,38 @@ export default function AcompanhamentoPage() {
           </Card>
         </div>
       </div>
+      <Dialog open={isDeleteProjectOpen} onOpenChange={setIsDeleteProjectOpen}>
+        <DialogContent className='max-w-[95vw] sm:max-w-md'>
+          <DialogHeader>
+            <DialogTitle>Excluir projeto</DialogTitle>
+            <DialogDescription>
+              Esta acao nao pode ser desfeita. Deseja excluir{' '}
+              <span className='font-medium'>
+                {projectToDelete?.name || 'este projeto'}
+              </span>
+              ?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className='gap-2 sm:gap-2'>
+            <Button
+              type='button'
+              variant='secondary'
+              onClick={() => setIsDeleteProjectOpen(false)}
+              disabled={isDeletingProject}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type='button'
+              variant='destructive'
+              onClick={handleDeleteProject}
+              disabled={isDeletingProject}
+            >
+              {isDeletingProject ? 'Excluindo...' : 'Excluir'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PageContainer>
   );
 }

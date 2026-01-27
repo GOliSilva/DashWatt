@@ -85,7 +85,7 @@ export default function OnboardingPage() {
         email: formData.email.toLowerCase().trim(),
         sector: formData.sector,
         cpf: cpfNumbers,
-        role: 'member', // Novo usuário sempre começa como member
+        role: 'Consultor', // Novo usuario sempre comeca como Consultor
         activity: '',
         status: 'Ativo',
         isLeadership: false,

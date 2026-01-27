@@ -104,6 +104,21 @@ const statusStyles: Record<string, string> = {
   Concluido: 'bg-emerald-500/10 text-emerald-700'
 };
 const statusOptions = ['Planejado', 'Em andamento', 'Bloqueado', 'Concluido'];
+const roleOptions = [
+  'Consultor',
+  'Gerente',
+  'Diretor',
+  'Assessor',
+  'Presidente'
+];
+const sectorOptions = [
+  'Automação',
+  'Elétrica',
+  'Comercial',
+  'Institucional',
+  'Marketing',
+  'Executivo'
+];
 
 type MemberOption = {
   id: string;
@@ -1091,33 +1106,53 @@ export default function MembroPage() {
                 <label className='text-sm font-medium' htmlFor='memberEditSector'>
                   Setor
                 </label>
-                <Input
-                  id='memberEditSector'
+                <Select
                   value={memberEditForm.sector}
                   disabled={isSavingMemberEdit}
-                  onChange={(event) =>
+                  onValueChange={(value) =>
                     setMemberEditForm((current) => ({
                       ...current,
-                      sector: event.target.value
+                      sector: value
                     }))
                   }
-                />
+                >
+                  <SelectTrigger id='memberEditSector'>
+                    <SelectValue placeholder='Selecione o setor' />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sectorOptions.map((sector) => (
+                      <SelectItem key={sector} value={sector}>
+                        {sector}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className='space-y-1'>
                 <label className='text-sm font-medium' htmlFor='memberEditRole'>
                   Cargo
                 </label>
-                <Input
-                  id='memberEditRole'
+                <Select
                   value={memberEditForm.role}
                   disabled={isSavingMemberEdit}
-                  onChange={(event) =>
+                  onValueChange={(value) =>
                     setMemberEditForm((current) => ({
                       ...current,
-                      role: event.target.value
+                      role: value
                     }))
                   }
-                />
+                >
+                  <SelectTrigger id='memberEditRole'>
+                    <SelectValue placeholder='Selecione o cargo' />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {roleOptions.map((role) => (
+                      <SelectItem key={role} value={role}>
+                        {role}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div className='space-y-1'>

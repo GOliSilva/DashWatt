@@ -9,6 +9,8 @@
 
 import { useMemo } from 'react';
 import type { NavItem } from '@/types';
+import { useAuth } from '@/features/auth/components/auth-provider';
+import { useFirebaseData } from '@/contexts/firebase-data-context';
 
 /**
  * Hook to return navigation items.
@@ -17,6 +19,9 @@ import type { NavItem } from '@/types';
  * @returns Items (filtered in production to show only Individual)
  */
 export function useFilteredNavItems(items: NavItem[]) {
+  const { user } = useAuth();
+  const { members } = useFirebaseData();
+
   return useMemo(() => {
     const isDevelopment = process.env.NODE_ENV === 'development';
     
@@ -24,27 +29,33 @@ export function useFilteredNavItems(items: NavItem[]) {
       return items;
     }
     
-    // Em produção, mostrar apenas o item "Individual"
-    return items.filter((item) => {
-      // Verificar se o item é "Individual" pelo URL
-      if (item.url === '/dashboard/individual') {
-        return true;
-      }
-      
-      // Verificar se algum sub-item é "Individual"
+    const currentMember = members.find(
+      (member) => member.id === user?.uid || member.email === user?.email
+    );
+    const role = currentMember?.role?.toLowerCase().trim() ?? '';
+    const allowAcompanhamento = role !== '' && role !== 'consultor';
+
+    const allowedUrls = new Set(['/dashboard/individual']);
+    if (allowAcompanhamento) {
+      allowedUrls.add('/dashboard/acompanhamento');
+    }
+
+    const filterItem = (item: NavItem): NavItem | null => {
+      const includeItem = Boolean(item.url && allowedUrls.has(item.url));
       if (item.items && item.items.length > 0) {
         const filteredSubItems = item.items.filter(
-          (subItem) => subItem.url === '/dashboard/individual'
+          (subItem) => subItem.url && allowedUrls.has(subItem.url)
         );
-        
         if (filteredSubItems.length > 0) {
-          // Retornar o item pai com apenas os sub-itens filtrados
-          item.items = filteredSubItems;
-          return true;
+          return {
+            ...item,
+            items: filteredSubItems
+          };
         }
       }
-      
-      return false;
-    });
-  }, [items]);
+      return includeItem ? { ...item } : null;
+    };
+
+    return items.map(filterItem).filter(Boolean) as NavItem[];
+  }, [items, members, user]);
 }

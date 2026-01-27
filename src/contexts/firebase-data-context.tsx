@@ -2,7 +2,8 @@
 
 import * as React from 'react';
 import { firebaseDb } from '@/lib/firebase/client';
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { collection, doc, onSnapshot, orderBy, query } from 'firebase/firestore';
+import { useAuth } from '@/features/auth/components/auth-provider';
 
 export type Project = {
   id: string;
@@ -52,6 +53,8 @@ export function FirebaseDataProvider({ children }: { children: React.ReactNode }
   const [members, setMembers] = React.useState<Member[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [currentMember, setCurrentMember] = React.useState<Member | null>(null);
+  const { user } = useAuth();
 
   React.useEffect(() => {
     if (!firebaseDb) {
@@ -61,7 +64,6 @@ export function FirebaseDataProvider({ children }: { children: React.ReactNode }
     }
 
     let projectsUnsubscribe: (() => void) | undefined;
-    let membersUnsubscribe: (() => void) | undefined;
 
     try {
       // Subscribe to projects collection
@@ -90,29 +92,7 @@ export function FirebaseDataProvider({ children }: { children: React.ReactNode }
         }
       );
 
-      // Subscribe to members collection
-      const membersQuery = query(
-        collection(firebaseDb, 'members'),
-        orderBy('createdAt', 'desc')
-      );
-      
-      membersUnsubscribe = onSnapshot(
-        membersQuery,
-        (snapshot) => {
-          const membersData: Member[] = [];
-          snapshot.forEach((doc) => {
-            membersData.push({
-              id: doc.id,
-              ...doc.data()
-            } as Member);
-          });
-          setMembers(membersData);
-        },
-        (err) => {
-          console.error('Erro ao escutar membros:', err);
-          setError(err.message);
-        }
-      );
+      // Members collection subscription is handled in a separate effect
     } catch (err: any) {
       console.error('Erro ao configurar listeners:', err);
       setError(err.message);
@@ -122,9 +102,84 @@ export function FirebaseDataProvider({ children }: { children: React.ReactNode }
     // Cleanup function
     return () => {
       if (projectsUnsubscribe) projectsUnsubscribe();
-      if (membersUnsubscribe) membersUnsubscribe();
     };
   }, []);
+
+  React.useEffect(() => {
+    if (!firebaseDb || !user?.uid) {
+      setCurrentMember(null);
+      setMembers([]);
+      return;
+    }
+
+    const memberRef = doc(firebaseDb, 'members', user.uid);
+    const unsubscribe = onSnapshot(
+      memberRef,
+      (snapshot) => {
+        if (!snapshot.exists()) {
+          setCurrentMember(null);
+          setMembers([]);
+          return;
+        }
+        const memberData = {
+          id: snapshot.id,
+          ...snapshot.data()
+        } as Member;
+        setCurrentMember(memberData);
+
+        const canReadAllMembers =
+          memberData.isLeadership === true ||
+          (memberData.role && memberData.role !== 'Consultor');
+        if (!canReadAllMembers) {
+          setMembers([memberData]);
+        }
+      },
+      (err) => {
+        console.error('Erro ao escutar membro atual:', err);
+        setError(err.message);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user?.uid]);
+
+  React.useEffect(() => {
+    if (!firebaseDb || !currentMember) {
+      return;
+    }
+
+    const canReadAllMembers =
+      currentMember.isLeadership === true ||
+      (currentMember.role && currentMember.role !== 'Consultor');
+    if (!canReadAllMembers) {
+      return;
+    }
+
+    const membersQuery = query(
+      collection(firebaseDb, 'members'),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(
+      membersQuery,
+      (snapshot) => {
+        const membersData: Member[] = [];
+        snapshot.forEach((docSnapshot) => {
+          membersData.push({
+            id: docSnapshot.id,
+            ...docSnapshot.data()
+          } as Member);
+        });
+        setMembers(membersData);
+      },
+      (err) => {
+        console.error('Erro ao escutar membros:', err);
+        setError(err.message);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [currentMember]);
 
   return (
     <FirebaseDataContext.Provider value={{ projects, members, isLoading, error }}>

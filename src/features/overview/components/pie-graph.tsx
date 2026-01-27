@@ -31,7 +31,9 @@ type PieGraphProps = {
   data?: PieDatum[];
   config?: ChartConfig;
   centerLabel?: string;
+  centerValue?: number | string;
   className?: string;
+  contentClassName?: string;
   innerRadius?: number | string;
   outerRadius?: number | string;
 };
@@ -84,13 +86,20 @@ export function PieGraph({
   data = defaultData,
   config = defaultConfig,
   centerLabel = 'Total Visitors',
+  centerValue,
   className,
+  contentClassName,
   innerRadius = 60,
   outerRadius
 }: PieGraphProps) {
   const totalValue = React.useMemo(() => {
     return data.reduce((acc, curr) => acc + curr.value, 0);
   }, [data]);
+
+  const displayValue =
+    typeof centerValue === 'number'
+      ? formatCompactNumber(centerValue)
+      : centerValue ?? formatCompactNumber(totalValue);
 
   return (
     <Card className={`@container/card ${className || ''}`.trim()}>
@@ -103,7 +112,7 @@ export function PieGraph({
           </span>
         </CardDescription>
       </CardHeader>
-      <CardContent className='px-2 pt-4 sm:px-6 sm:pt-6'>
+      <CardContent className={contentClassName ?? 'px-2 pt-4 sm:px-6 sm:pt-6'}>
         <ChartContainer config={config} className='mx-auto aspect-square h-[250px]'>
           <PieChart>
             <defs>
@@ -160,7 +169,7 @@ export function PieGraph({
                           y={viewBox.cy}
                           className='fill-foreground text-3xl font-bold'
                         >
-                          {formatCompactNumber(totalValue)}
+                          {displayValue}
                         </tspan>
                         <tspan
                           x={viewBox.cx}
