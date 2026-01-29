@@ -955,7 +955,7 @@ export default function MembroPage() {
                       Nenhum membro encontrado.
                     </div>
                   ) : (
-                    <ScrollArea className='max-h-48'>
+                    <ScrollArea className='h-32'>
                       <div className='flex flex-col gap-1 p-1'>
                         {filteredEditMembers.map((member) => (
                           <button

@@ -296,8 +296,17 @@ export default function AcompanhamentoPage() {
   }, [contextProjects]);
 
   // Mapear members do contexto
-  const memberList = React.useMemo(() => {
-    return contextMembers.map((member) => ({
+  const normalizeValue = React.useCallback(
+    (value?: string) =>
+      value
+        ?.toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '') ?? '',
+    []
+  );
+
+  const toMemberCard = React.useCallback(
+    (member: FirebaseMember) => ({
       id: member.id,
       name: member.name ?? 'Sem nome',
       email: member.email,
@@ -307,17 +316,51 @@ export default function AcompanhamentoPage() {
       activity: member.activity ?? 'Sem atividade',
       status: member.status ?? 'offline',
       isLeadership: member.isLeadership
-    }));
-  }, [contextMembers]);
-
-  const normalizeValue = React.useCallback(
-    (value?: string) =>
-      value
-        ?.toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '') ?? '',
+    }),
     []
   );
+
+  const memberList = React.useMemo(
+    () => contextMembers.map(toMemberCard),
+    [contextMembers, toMemberCard]
+  );
+
+  const scopedMembers = React.useMemo(() => {
+    if (areaFilter === 'Geral') {
+      return contextMembers;
+    }
+    const selectedSector = normalizeValue(areaFilter);
+    return contextMembers.filter(
+      (member) => normalizeValue(member.sector) === selectedSector
+    );
+  }, [areaFilter, contextMembers, normalizeValue]);
+
+  const filteredMembers = React.useMemo(() => {
+    return scopedMembers.map(toMemberCard);
+  }, [scopedMembers, toMemberCard]);
+
+  const parseAgendaDueDate = React.useCallback((value?: string) => {
+    if (!value) {
+      return null;
+    }
+    if (value.includes('/')) {
+      const parts = value.split('/');
+      if (parts.length !== 3) {
+        return null;
+      }
+      const [day, month, year] = parts;
+      const parsed = new Date(
+        Number.parseInt(year, 10),
+        Number.parseInt(month, 10) - 1,
+        Number.parseInt(day, 10)
+      );
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+    const parsed = value.includes('T')
+      ? new Date(value)
+      : new Date(`${value}T00:00:00`);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }, []);
 
   const occupancyMetrics = React.useMemo(() => {
     const isGeneral = areaFilter === 'Geral';
@@ -330,6 +373,14 @@ export default function AcompanhamentoPage() {
 
     const memberIds = new Set(scopedMembers.map((member) => member.id));
     const occupiedIds = new Set<string>();
+    const today = new Date();
+    const startOfToday = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate()
+    );
+    const endDate = new Date(startOfToday);
+    endDate.setDate(endDate.getDate() + 7);
 
     contextProjects.forEach((project) => {
       const activities = (project as any)?.Activities as Array<{
@@ -339,12 +390,12 @@ export default function AcompanhamentoPage() {
       if (!Array.isArray(activities)) return;
 
       activities.forEach((activity) => {
-        const status = activity?.status ?? '';
+        const status = normalizeValue(activity?.status ?? '');
         if (
           activity?.ownerId &&
           memberIds.has(activity.ownerId) &&
-          status !== 'Bloqueado' &&
-          status !== 'Concluido'
+          status !== 'bloqueado' &&
+          status !== 'concluido'
         ) {
           occupiedIds.add(activity.ownerId);
         }
@@ -354,10 +405,26 @@ export default function AcompanhamentoPage() {
     scopedMembers.forEach((member) => {
       const agendaTasks = (member as any)?.agendaTasks as Array<{
         priority?: string;
+        status?: string;
+        due?: string;
       }> | undefined;
       if (
         Array.isArray(agendaTasks) &&
-        agendaTasks.some((task) => task?.priority === 'Alta')
+        agendaTasks.some((task) => {
+          const priority = normalizeValue(task?.priority ?? '');
+          if (priority !== 'alta') {
+            return false;
+          }
+          const status = normalizeValue(task?.status ?? '');
+          if (status === 'bloqueado' || status === 'concluido') {
+            return false;
+          }
+          const dueDate = parseAgendaDueDate(task?.due);
+          if (!dueDate) {
+            return false;
+          }
+          return dueDate >= startOfToday && dueDate <= endDate;
+        })
       ) {
         occupiedIds.add(member.id);
       }
@@ -375,7 +442,13 @@ export default function AcompanhamentoPage() {
       availableCount,
       occupiedPercent
     };
-  }, [areaFilter, contextMembers, contextProjects, normalizeValue]);
+  }, [
+    areaFilter,
+    contextMembers,
+    contextProjects,
+    normalizeValue,
+    parseAgendaDueDate
+  ]);
 
   const occupancyChartData = React.useMemo(
     () => [
@@ -590,6 +663,10 @@ export default function AcompanhamentoPage() {
                   </div>
                 ))}
               </div>
+            ) : filteredProjects.length === 0 ? (
+              <div className='text-muted-foreground text-sm'>
+                Nenhum projeto encontrado para o filtro selecionado.
+              </div>
             ) : (
               filteredProjects.map((project) => (
                 <div
@@ -662,7 +739,7 @@ export default function AcompanhamentoPage() {
       <CardHeader>
         <CardTitle>Projetos em acompanhamento</CardTitle>
         <CardDescription>Lista priorizada com status</CardDescription>
-        <div className='mt-3 flex flex-wrap items-center gap-2'>
+        <div className='mt-3 flex flex-wrap items-center gap-2 justify-end'>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger
               className='h-8 w-40'
@@ -723,6 +800,17 @@ export default function AcompanhamentoPage() {
     <div className='h-105 [&>div]:h-full'>
       {isDataLoading ? (
         <Skeleton className='h-full w-full' />
+      ) : occupancyMetrics.totalMembers === 0 ? (
+        <Card className='h-full'>
+          <CardContent className='flex h-full flex-col items-center justify-center gap-2 text-center'>
+            <div className='text-sm font-medium'>
+              Nenhum membro no setor selecionado
+            </div>
+            <div className='text-muted-foreground text-xs'>
+              Selecione outro setor para ver a ocupacao.
+            </div>
+          </CardContent>
+        </Card>
       ) : (
         <PieGraph
           title='Membros ocupados'
@@ -765,30 +853,34 @@ export default function AcompanhamentoPage() {
                   </div>
                 ))}
               </div>
-            ) : (
-              memberList.map((member) => (
-                <Link
-                  key={member.id}
-                  href={`/dashboard/acompanhamento/membros/${member.id}`}
-                  className='hover:bg-accent focus-visible:ring-ring/50 flex w-full items-start justify-between gap-3 rounded-md border p-3 text-left transition-colors focus-visible:ring-[3px] focus-visible:outline-none'
-                >
-                  <div className='flex flex-col'>
-                    <span className='text-sm font-medium'>
-                      {member.name}
-                    </span>
-                    <span className='text-muted-foreground text-xs'>
-                      {member.role} - {member.activity}
-                    </span>
-                  </div>
-                  <Badge variant='outline'>
-                    {member.sector || '--'}
-                  </Badge>
-                </Link>
-              ))
-            )}
-          </div>
-        </ScrollArea>
-      </CardContent>
+              ) : filteredMembers.length === 0 ? (
+                <div className='text-muted-foreground text-sm'>
+                  Nenhum membro no setor selecionado.
+                </div>
+              ) : (
+                filteredMembers.map((member) => (
+                  <Link
+                    key={member.id}
+                    href={`/dashboard/acompanhamento/membros/${member.id}`}
+                    className='hover:bg-accent focus-visible:ring-ring/50 flex w-full items-start justify-between gap-3 rounded-md border p-3 text-left transition-colors focus-visible:ring-[3px] focus-visible:outline-none'
+                  >
+                    <div className='flex flex-col'>
+                      <span className='text-sm font-medium'>
+                        {member.name}
+                      </span>
+                      <span className='text-muted-foreground text-xs'>
+                        {member.role} - {member.activity}
+                      </span>
+                    </div>
+                    <Badge variant='outline'>
+                      {member.sector || '--'}
+                    </Badge>
+                  </Link>
+                ))
+              )}
+            </div>
+          </ScrollArea>
+        </CardContent>
     </Card>
   );
 
