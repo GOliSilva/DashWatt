@@ -38,6 +38,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  onSnapshot,
   query,
   serverTimestamp,
   Timestamp,
@@ -273,7 +274,7 @@ const getWeekStart = (date: Date) => {
   return weekStart;
 };
 
-const calculateWorkedHours = (records: {type: string; timestamp: any}[]) => {
+const calculateWorkedHours = (records: { type: string; timestamp: any }[]) => {
   let totalMinutes = 0;
   let lastEntrada: Date | null = null;
 
@@ -285,7 +286,7 @@ const calculateWorkedHours = (records: {type: string; timestamp: any}[]) => {
 
   for (const record of sorted) {
     if (!record.timestamp?.toDate) continue;
-    
+
     const recordDate = record.timestamp.toDate();
 
     if (record.type === 'Entrada') {
@@ -352,12 +353,12 @@ export default function IndividualPage() {
   const [isEditAgendaModalOpen, setIsEditAgendaModalOpen] = React.useState(false);
   const [agendaTaskToEdit, setAgendaTaskToEdit] = React.useState<MemberTask | null>(null);
   const [isSavingAgendaEdit, setIsSavingAgendaEdit] = React.useState(false);
-  const [timeRecords, setTimeRecords] = React.useState<{id: string; type: string; timestamp: any}[]>([]);
+  const [timeRecords, setTimeRecords] = React.useState<{ id: string; type: string; timestamp: any }[]>([]);
   const [isBatingPonto, setIsBatingPonto] = React.useState(false);
   const [editStatus, setEditStatus] = React.useState(statusOptions[1]);
   const [updateNote, setUpdateNote] = React.useState('');
   const [isSavingAgenda, setIsSavingAgenda] = React.useState(false);
-  const [weekTimeRecords, setWeekTimeRecords] = React.useState<{id: string; type: string; timestamp: any}[]>([]);
+  const [weekTimeRecords, setWeekTimeRecords] = React.useState<{ id: string; type: string; timestamp: any }[]>([]);
   const [currentRunningTime, setCurrentRunningTime] = React.useState(0);
   const [hoveredTaskId, setHoveredTaskId] = React.useState<string | null>(null);
   const [hoveredEditTaskId, setHoveredEditTaskId] = React.useState<string | null>(null);
@@ -375,6 +376,32 @@ export default function IndividualPage() {
     priority: priorityOptions[1],
     status: statusOptions[0]
   });
+
+  const [minWeeklyHours, setMinWeeklyHours] = React.useState(4);
+
+  // Subscribe to global weekly hours setting
+  React.useEffect(() => {
+    if (!firebaseDb || authLoading) return;
+    const globalRef = doc(firebaseDb, 'GlobalInfo', 'globalInformations');
+    const unsubscribe = onSnapshot(
+      globalRef,
+      (docSnapshot) => {
+        console.log('GlobalInfo snapshot:', docSnapshot.exists(), docSnapshot.data());
+        if (docSnapshot.exists()) {
+          const data = docSnapshot.data();
+          console.log('Semanal Hours from DB:', data.semanalHours);
+          if (data.semanalHours !== undefined) {
+            setMinWeeklyHours(Number(data.semanalHours));
+          }
+        }
+      },
+      (error) => {
+        console.error('Erro ao buscar horas semanais:', error);
+      }
+    );
+    return () => unsubscribe();
+  }, [authLoading]);
+
   const buildMemberCache = React.useCallback(
     (overrides: Partial<MemberCacheData> = {}) => ({
       ...memberInfo,
@@ -440,7 +467,7 @@ export default function IndividualPage() {
 
     let isActive = true;
     setIsMemberLoading(true);
-    
+
     const applyMemberSnapshot = (
       docId: string,
       data: Partial<MemberInfo> & {
@@ -457,19 +484,19 @@ export default function IndividualPage() {
         cpf: data.cpf ?? '',
         role: data.role ?? ''
       });
-      
+
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
       const weekStart = getWeekStart(new Date());
-      const allRecords = ((data as any).timeRecords || []) as {id: string; type: string; timestamp: any}[];
-      
+      const allRecords = ((data as any).timeRecords || []) as { id: string; type: string; timestamp: any }[];
+
       console.log('=== DEBUG PONTO ===');
       console.log('Total de registros no Firestore:', allRecords.length);
       console.log('Data de hoje:', today);
       console.log('Início da semana (segunda-feira):', weekStart);
-      
+
       const todayRecords = allRecords.filter((r: any) => {
         if (!r.timestamp?.toDate) return false;
         const recordDate = r.timestamp.toDate();
@@ -477,7 +504,7 @@ export default function IndividualPage() {
       });
       console.log('Registros de hoje filtrados:', todayRecords.length);
       setTimeRecords(todayRecords);
-      
+
       const weekRecords = allRecords.filter((r: any) => {
         if (!r.timestamp?.toDate) return false;
         const recordDate = r.timestamp.toDate();
@@ -494,7 +521,7 @@ export default function IndividualPage() {
       console.log('Registros da semana filtrados:', weekRecords.length);
       console.log('===================');
       setWeekTimeRecords(weekRecords);
-      
+
       if (Array.isArray(data.agendaTasks)) {
         setAgendaTasks(
           data.agendaTasks.map((task) => ({
@@ -537,7 +564,7 @@ export default function IndividualPage() {
         // Usar o UID do usuário para buscar o documento do membro
         const memberRef = doc(db, 'members', user.uid);
         const memberDoc = await getDoc(memberRef);
-        
+
         if (memberDoc.exists() && isActive) {
           applyMemberSnapshot(
             memberDoc.id,
@@ -667,7 +694,7 @@ export default function IndividualPage() {
 
   React.useEffect(() => {
     const hasActiveEntry = timeRecords.length > 0 && timeRecords[timeRecords.length - 1].type === 'Entrada';
-    
+
     if (!hasActiveEntry) {
       setCurrentRunningTime(0);
       return;
@@ -734,12 +761,12 @@ export default function IndividualPage() {
             : `update-${Date.now()}`;
         const updateEntry: ActivityUpdate | null = noteValue
           ? {
-              id: updateId,
-              author: memberInfo.name || 'Membro',
-              authorId: memberId || undefined,
-              note: noteValue,
-              time: format(new Date(), 'dd/MM/yyyy HH:mm')
-            }
+            id: updateId,
+            author: memberInfo.name || 'Membro',
+            authorId: memberId || undefined,
+            note: noteValue,
+            time: format(new Date(), 'dd/MM/yyyy HH:mm')
+          }
           : null;
 
         const existingAgenda = Array.isArray(memberData.agendaTasks)
@@ -765,12 +792,12 @@ export default function IndividualPage() {
         const nextLocalAgenda = agendaTasks.map((task) =>
           task.id === activeTask.id
             ? {
-                ...task,
-                status: editStatus,
-                updates: updateEntry
-                  ? [updateEntry, ...(task.updates ?? [])]
-                  : task.updates
-              }
+              ...task,
+              status: editStatus,
+              updates: updateEntry
+                ? [updateEntry, ...(task.updates ?? [])]
+                : task.updates
+            }
             : task
         );
 
@@ -783,12 +810,12 @@ export default function IndividualPage() {
         setActiveTask((current) =>
           current
             ? {
-                ...current,
-                status: editStatus,
-                updates: updateEntry
-                  ? [updateEntry, ...(current.updates ?? [])]
-                  : current.updates
-              }
+              ...current,
+              status: editStatus,
+              updates: updateEntry
+                ? [updateEntry, ...(current.updates ?? [])]
+                : current.updates
+            }
             : current
         );
         setUpdateNote('');
@@ -812,30 +839,30 @@ export default function IndividualPage() {
           : `update-${Date.now()}`;
       const updateEntry: ActivityUpdate | null = noteValue
         ? {
-            id: updateId,
-            author: memberInfo.name || 'Membro',
-            authorId: memberId || undefined,
-            note: noteValue,
-            time: format(new Date(), 'dd/MM/yyyy HH:mm')
-          }
+          id: updateId,
+          author: memberInfo.name || 'Membro',
+          authorId: memberId || undefined,
+          note: noteValue,
+          time: format(new Date(), 'dd/MM/yyyy HH:mm')
+        }
         : null;
 
       const nextActivities = Array.isArray(data.Activities)
         ? data.Activities.map((activity) => {
-            if (activity.id !== activeTask.activityId) {
-              return activity;
-            }
-            const existingUpdates = Array.isArray(activity.updates)
-              ? activity.updates
-              : [];
-            return {
-              ...activity,
-              status: editStatus,
-              updates: updateEntry
-                ? [updateEntry, ...existingUpdates]
-                : existingUpdates
-            };
-          })
+          if (activity.id !== activeTask.activityId) {
+            return activity;
+          }
+          const existingUpdates = Array.isArray(activity.updates)
+            ? activity.updates
+            : [];
+          return {
+            ...activity,
+            status: editStatus,
+            updates: updateEntry
+              ? [updateEntry, ...existingUpdates]
+              : existingUpdates
+          };
+        })
         : [];
 
       await updateDoc(projectRef, {
@@ -846,12 +873,12 @@ export default function IndividualPage() {
       const nextProjectTasks = projectTasks.map((task) =>
         task.id === activeTask.id
           ? {
-              ...task,
-              status: editStatus,
-              updates: updateEntry
-                ? [updateEntry, ...(task.updates ?? [])]
-                : task.updates
-            }
+            ...task,
+            status: editStatus,
+            updates: updateEntry
+              ? [updateEntry, ...(task.updates ?? [])]
+              : task.updates
+          }
           : task
       );
 
@@ -859,12 +886,12 @@ export default function IndividualPage() {
       setActiveTask((current) =>
         current
           ? {
-              ...current,
-              status: editStatus,
-              updates: updateEntry
-                ? [updateEntry, ...(current.updates ?? [])]
-                : current.updates
-            }
+            ...current,
+            status: editStatus,
+            updates: updateEntry
+              ? [updateEntry, ...(current.updates ?? [])]
+              : current.updates
+          }
           : current
       );
       setUpdateNote('');
@@ -1018,7 +1045,7 @@ export default function IndividualPage() {
     setIsBatingPonto(true);
     try {
       const type = timeRecords.length === 0 || timeRecords[timeRecords.length - 1].type === 'Saída' ? 'Entrada' : 'Saída';
-      
+
       const newRecord = {
         id: `${Date.now()}`,
         type,
@@ -1028,7 +1055,7 @@ export default function IndividualPage() {
       const memberRef = doc(firebaseDb, 'members', memberId);
       const memberDoc = await getDoc(memberRef);
       const currentRecords = (memberDoc.data()?.timeRecords || []) as any[];
-      
+
       await updateDoc(memberRef, {
         timeRecords: [...currentRecords, newRecord],
         updatedAt: serverTimestamp()
@@ -1185,7 +1212,7 @@ export default function IndividualPage() {
                       <Accordion type='single' collapsible className='w-full'>
                         {allTasks.map((task) => (
                           <AccordionItem key={task.id} value={task.id}>
-                            
+
                             <AccordionTrigger className='hover:no-underline py-3'>
                               <div className='flex items-start justify-between gap-2 w-full pr-2'>
                                 <div className='flex flex-col items-start text-left'>
@@ -1194,17 +1221,17 @@ export default function IndividualPage() {
                                   </span>
                                   <span className='text-muted-foreground text-xs'>
                                     {task.due}
-                                    
+
                                   </span>
                                 </div>
                                 <div className='flex flex-col items-end gap-1 shrink-0'>
                                   <Badge className={`${statusStyles[task.status]} text-[10px] px-1.5 py-0`}>
                                     {task.status}
-                                    
+
                                   </Badge>
                                   <Badge className={`${priorityStyles[task.priority]} text-[10px] px-1.5 py-0`}>
                                     {task.priority}
-                                    
+
                                   </Badge>
                                 </div>
                               </div>
@@ -1295,7 +1322,7 @@ export default function IndividualPage() {
                         />
                       </div>
                     )}
-                    
+
                     <div className='rounded-lg border p-3'>
                       <div className='text-muted-foreground text-xs font-semibold uppercase mb-2'>
                         Atividades do dia
@@ -1390,7 +1417,7 @@ export default function IndividualPage() {
                           className='h-11'
                         />
                       </div>
-                      
+
                       <div className='space-y-2'>
                         <label className='text-sm font-medium' htmlFor='agendaTitle'>
                           Nome da atividade
@@ -1513,8 +1540,8 @@ export default function IndividualPage() {
                       const baseWorkedHours = calculateWorkedHours(weekTimeRecords);
                       const runningHours = currentRunningTime / 3600;
                       const workedHours = baseWorkedHours + runningHours;
-                      const isPaid = workedHours >= 4;
-                      const progressPercent = Math.min((workedHours / 4) * 100, 100);
+                      const isPaid = workedHours >= minWeeklyHours;
+                      const progressPercent = Math.min((workedHours / minWeeklyHours) * 100, 100);
                       const hasActiveEntry = timeRecords.length > 0 && timeRecords[timeRecords.length - 1].type === 'Entrada';
 
                       return (
@@ -1524,7 +1551,7 @@ export default function IndividualPage() {
                               {workedHours.toFixed(2)}h
                             </div>
                             <div className='text-muted-foreground text-xs mt-1'>
-                              de 4h trabalhadas
+                              de {minWeeklyHours}h trabalhadas
                             </div>
                           </div>
 
@@ -1532,14 +1559,14 @@ export default function IndividualPage() {
                             <Progress value={progressPercent} className='h-2.5' />
                             <div className='flex justify-between text-xs text-muted-foreground'>
                               <span>0h</span>
-                              <span>4h</span>
+                              <span>{minWeeklyHours}h</span>
                             </div>
                           </div>
 
                           {isPaid && hasActiveEntry && (
                             <div className='rounded-lg border border-amber-500 bg-amber-500/10 p-3 text-center'>
                               <div className='text-amber-600 font-semibold text-sm'>
-                                ⚠ Entrada ativa com 4h+ trabalhadas
+                                ⚠ Entrada ativa com {minWeeklyHours}h+ trabalhadas
                               </div>
                               <div className='text-muted-foreground text-xs mt-1'>
                                 Registre a saída para contabilizar
@@ -1553,7 +1580,7 @@ export default function IndividualPage() {
                                 ✔ Horas semanais pagas
                               </div>
                               <div className='text-muted-foreground text-xs mt-1'>
-                                {workedHours.toFixed(2)}h / 4h completadas
+                                {workedHours.toFixed(2)}h / {minWeeklyHours}h completadas
                               </div>
                             </div>
                           )}
@@ -1639,13 +1666,12 @@ export default function IndividualPage() {
                           setHoveredTaskId(null);
                           setHoveredEditTaskId(null);
                         }}
-                        className={`focus-visible:ring-ring/50 w-full rounded-md border p-3 text-left transition-colors focus-visible:ring-[3px] focus-visible:outline-none ${
-                          hoveredTaskId === task.id && hoveredEditTaskId !== task.id
-                            ? 'bg-accent'
-                            : ''
-                        }`}
+                        className={`focus-visible:ring-ring/50 w-full rounded-md border p-3 text-left transition-colors focus-visible:ring-[3px] focus-visible:outline-none ${hoveredTaskId === task.id && hoveredEditTaskId !== task.id
+                          ? 'bg-accent'
+                          : ''
+                          }`}
                       >
-                        
+
                         <div className='flex items-center justify-between gap-3'>
                           <div className='flex flex-col'>
                             <span className='text-sm font-medium'>
@@ -1653,7 +1679,7 @@ export default function IndividualPage() {
                             </span>
                             <span className='text-muted-foreground text-xs'>
                               Prazo: {task.due}
-                              
+
                             </span>
                             {task.description ? (
                               <span className='text-muted-foreground text-justify text-xs line-clamp-2 break-all'>
@@ -1708,7 +1734,7 @@ export default function IndividualPage() {
                                 {task.priority}
                               </Badge>
                             </div>
-                            
+
                           </div>
                         </div>
                       </div>
@@ -1819,124 +1845,124 @@ export default function IndividualPage() {
                     <Skeleton className='h-24 w-full' />
                   </div>
                 ) : (
-                <>
-                <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
-                  <div className='space-y-1'>
-                    <label className='text-sm font-medium' htmlFor='agendaDate'>
-                      Data
-                    </label>
-                    <Input
-                      id='agendaDate'
-                      type='date'
-                      value={agendaForm.date}
-                      disabled={isSavingAgenda}
-                      onChange={(event) =>
-                        setAgendaForm((current) => ({
-                          ...current,
-                          date: event.target.value
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className='space-y-1'>
-                    <label
-                      className='text-sm font-medium'
-                      htmlFor='agendaTitle'
-                    >
-                      Nome da atividade
-                    </label>
-                    <Input
-                      id='agendaTitle'
-                      placeholder='Ex: Visita tecnica'
-                      value={agendaForm.title}
-                      disabled={isSavingAgenda}
-                      onChange={(event) =>
-                        setAgendaForm((current) => ({
-                          ...current,
-                          title: event.target.value
-                        }))
-                      }
-                    />
-                  </div>
-                </div>
-                <div className='space-y-1'>
-                  <label className='text-sm font-medium' htmlFor='agendaNotes'>
-                    Descricao
-                  </label>
-                  <Textarea
-                    id='agendaNotes'
-                    placeholder='Detalhes do compromisso'
-                    className='min-h-16'
-                    value={agendaForm.description}
-                    disabled={isSavingAgenda}
-                    onChange={(event) =>
-                      setAgendaForm((current) => ({
-                        ...current,
-                        description: event.target.value
-                      }))
-                    }
-                  />
-                </div>
-                <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
-                  <div className='space-y-1'>
-                    <label className='text-sm font-medium'>Prioridade</label>
-                    <Select
-                      value={agendaForm.priority}
-                      disabled={isSavingAgenda}
-                      onValueChange={(value) =>
-                        setAgendaForm((current) => ({
-                          ...current,
-                          priority: value
-                        }))
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder='Prioridade' />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {priorityOptions.map((priority) => (
-                          <SelectItem key={priority} value={priority}>
-                            {priority}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className='space-y-1'>
-                    <label className='text-sm font-medium'>Status</label>
-                    <Select
-                      value={agendaForm.status}
-                      disabled={isSavingAgenda}
-                      onValueChange={(value) =>
-                        setAgendaForm((current) => ({
-                          ...current,
-                          status: value
-                        }))
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder='Status' />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {statusOptions.map((status) => (
-                          <SelectItem key={status} value={status}>
-                            {status}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className='flex justify-end'>
-                  <Button
-                    type='button'
-                    onClick={handleAddAgendaTask}
-                    disabled={isSavingAgenda}
-                  >
-                    {isSavingAgenda ? 'Salvando...' : 'Adicionar'}
-                  </Button>
-                </div>
-                </>
+                  <>
+                    <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
+                      <div className='space-y-1'>
+                        <label className='text-sm font-medium' htmlFor='agendaDate'>
+                          Data
+                        </label>
+                        <Input
+                          id='agendaDate'
+                          type='date'
+                          value={agendaForm.date}
+                          disabled={isSavingAgenda}
+                          onChange={(event) =>
+                            setAgendaForm((current) => ({
+                              ...current,
+                              date: event.target.value
+                            }))
+                          }
+                        />
+                      </div>
+                      <div className='space-y-1'>
+                        <label
+                          className='text-sm font-medium'
+                          htmlFor='agendaTitle'
+                        >
+                          Nome da atividade
+                        </label>
+                        <Input
+                          id='agendaTitle'
+                          placeholder='Ex: Visita tecnica'
+                          value={agendaForm.title}
+                          disabled={isSavingAgenda}
+                          onChange={(event) =>
+                            setAgendaForm((current) => ({
+                              ...current,
+                              title: event.target.value
+                            }))
+                          }
+                        />
+                      </div>
+                    </div>
+                    <div className='space-y-1'>
+                      <label className='text-sm font-medium' htmlFor='agendaNotes'>
+                        Descricao
+                      </label>
+                      <Textarea
+                        id='agendaNotes'
+                        placeholder='Detalhes do compromisso'
+                        className='min-h-16'
+                        value={agendaForm.description}
+                        disabled={isSavingAgenda}
+                        onChange={(event) =>
+                          setAgendaForm((current) => ({
+                            ...current,
+                            description: event.target.value
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
+                      <div className='space-y-1'>
+                        <label className='text-sm font-medium'>Prioridade</label>
+                        <Select
+                          value={agendaForm.priority}
+                          disabled={isSavingAgenda}
+                          onValueChange={(value) =>
+                            setAgendaForm((current) => ({
+                              ...current,
+                              priority: value
+                            }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder='Prioridade' />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {priorityOptions.map((priority) => (
+                              <SelectItem key={priority} value={priority}>
+                                {priority}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className='space-y-1'>
+                        <label className='text-sm font-medium'>Status</label>
+                        <Select
+                          value={agendaForm.status}
+                          disabled={isSavingAgenda}
+                          onValueChange={(value) =>
+                            setAgendaForm((current) => ({
+                              ...current,
+                              status: value
+                            }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder='Status' />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {statusOptions.map((status) => (
+                              <SelectItem key={status} value={status}>
+                                {status}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className='flex justify-end'>
+                      <Button
+                        type='button'
+                        onClick={handleAddAgendaTask}
+                        disabled={isSavingAgenda}
+                      >
+                        {isSavingAgenda ? 'Salvando...' : 'Adicionar'}
+                      </Button>
+                    </div>
+                  </>
                 )}
               </div>
             </CardContent>
@@ -1969,7 +1995,7 @@ export default function IndividualPage() {
                               Registre a saída para contabilizar as horas pagas
                             </div>
                           </div>
-                          
+
                           <Button
                             onClick={handleBaterPonto}
                             disabled={isBatingPonto}
@@ -1979,7 +2005,7 @@ export default function IndividualPage() {
                           >
                             {isBatingPonto ? 'Registrando...' : 'Registrar Saída'}
                           </Button>
-                          
+
                           <div className='text-center'>
                             <div className='text-3xl font-bold'>
                               {workedHours.toFixed(2)}h
@@ -1988,7 +2014,7 @@ export default function IndividualPage() {
                               de 4h trabalhadas
                             </div>
                           </div>
-                          
+
                           <div className='space-y-2'>
                             <Progress value={progressPercent} className='h-3' />
                             <div className='flex justify-between text-xs text-muted-foreground'>
@@ -2003,7 +2029,7 @@ export default function IndividualPage() {
                             ✔ Horas semanais pagas
                           </div>
                           <div className='text-muted-foreground text-xs mt-1'>
-                            {workedHours.toFixed(2)}h / 4h completadas
+                            {workedHours.toFixed(2)}h / {minWeeklyHours}h completadas
                           </div>
                         </div>
                       ) : (
@@ -2016,7 +2042,7 @@ export default function IndividualPage() {
                           >
                             {isBatingPonto ? 'Registrando...' : timeRecords.length === 0 || timeRecords[timeRecords.length - 1].type === 'Saída' ? 'Registrar Entrada' : 'Registrar Saída'}
                           </Button>
-                          
+
                           <div className='text-center'>
                             <div className='text-3xl font-bold'>
                               {workedHours.toFixed(2)}h
@@ -2025,7 +2051,7 @@ export default function IndividualPage() {
                               de 4h trabalhadas
                             </div>
                           </div>
-                          
+
                           <div className='space-y-2'>
                             <Progress value={progressPercent} className='h-3' />
                             <div className='flex justify-between text-xs text-muted-foreground'>
@@ -2097,7 +2123,7 @@ export default function IndividualPage() {
                 {activeTask?.description?.trim() || 'Sem descrição'}
               </div>
             </details>
-            
+
             <div className='grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3'>
               <div className='space-y-2'>
                 <label className='text-sm font-medium'>Status</label>
@@ -2129,7 +2155,7 @@ export default function IndividualPage() {
                 +
               </Button>
             </div>
-            
+
             <div className='space-y-2'>
               <label className='text-sm font-medium'>Adicionar atualização</label>
               <Textarea
@@ -2140,7 +2166,7 @@ export default function IndividualPage() {
                 onChange={(event) => setUpdateNote(event.target.value)}
               />
             </div>
-            
+
             <div className='rounded-lg border p-3'>
               <div className='text-sm font-medium mb-3'>Atualizações anteriores</div>
               <div className='space-y-2 max-h-60 overflow-y-auto'>
@@ -2332,7 +2358,7 @@ export default function IndividualPage() {
               variant='secondary'
               onClick={() => setIsDeleteModalOpen(false)}
               disabled={Boolean(deletingAgendaId)}
-              
+
             >
               Cancelar
             </Button>
