@@ -64,6 +64,11 @@ export function FirebaseDataProvider({ children }: { children: React.ReactNode }
       return;
     }
 
+    if (!user) {
+      setProjects([]);
+      return;
+    }
+
     let projectsUnsubscribe: (() => void) | undefined;
 
     try {
@@ -104,7 +109,7 @@ export function FirebaseDataProvider({ children }: { children: React.ReactNode }
     return () => {
       if (projectsUnsubscribe) projectsUnsubscribe();
     };
-  }, []);
+  }, [user]);
 
   React.useEffect(() => {
     if (!firebaseDb || !user?.uid) {
