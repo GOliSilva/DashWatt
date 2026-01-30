@@ -21,10 +21,10 @@ export function UserNav() {
 
   const userProfile = user
     ? {
-        fullName: user.displayName ?? user.email ?? 'Usuario',
-        imageUrl: user.photoURL ?? '',
-        emailAddresses: [{ emailAddress: user.email ?? '' }]
-      }
+      fullName: user.displayName ?? user.email ?? 'Usuario',
+      imageUrl: user.photoURL ?? '',
+      emailAddresses: [{ emailAddress: user.email ?? '' }]
+    }
     : null;
 
   const handleSignOut = async () => {
@@ -76,14 +76,10 @@ export function UserNav() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem onClick={() => router.push('/dashboard/profile')}>
+          <DropdownMenuItem onClick={() => router.push('/dashboard/individual')}>
             Profile
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => router.push('/dashboard/billing')}>
-            Billing
-          </DropdownMenuItem>
-          <DropdownMenuItem>Settings</DropdownMenuItem>
-          <DropdownMenuItem>New Team</DropdownMenuItem>
+          {/* Billing, Settings, New Team removed as per request */}
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleSignOut}>Sair</DropdownMenuItem>

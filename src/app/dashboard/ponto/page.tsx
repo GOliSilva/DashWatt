@@ -233,16 +233,27 @@ export default function PontoPage() {
 
                 <div className="grid grid-cols-2 gap-3 md:gap-6">
                     <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 md:p-6">
-                            <CardTitle className="text-xs md:text-sm font-medium leading-none">Em Tempo Real</CardTitle>
-                            <Users className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-0 md:px-6 md:pt-0">
+                            <div className="space-y-1">
+                                <CardTitle className="text-xs md:text-2xl font-medium leading-none">
+                                    <span className="md:hidden">Em Tempo Real</span>
+                                    <span className="hidden md:inline">Presença em Tempo Real</span>
+                                </CardTitle>
+                                <p className="hidden md:block text-xs text-muted-foreground">
+                                    Membros ativos no momento.
+                                </p>
+                            </div>
+                            <Users className="h-3 w-3 md:h-5 md:w-5 text-muted-foreground" />
                         </CardHeader>
                         <CardContent className="p-4 md:p-6 pt-0">
                             <div className="flex flex-col md:flex-row items-start md:items-baseline gap-1 md:gap-2">
-                                <span className="text-2xl md:text-3xl font-bold text-green-600 dark:text-green-400">
+                                <span className="text-2xl md:text-4xl font-bold text-green-600 dark:text-green-400">
                                     {stats.working}
                                 </span>
-                                <span className="text-xs md:text-sm text-muted-foreground">de {stats.total} ativos</span>
+                                <span className="text-xs md:text-sm text-muted-foreground">
+                                    <span className="md:hidden">de {stats.total} ativos</span>
+                                    <span className="hidden md:inline">de {stats.total} membros registrados</span>
+                                </span>
                             </div>
                             <div className="h-1.5 md:h-2 w-full bg-secondary mt-2 md:mt-3 rounded-full overflow-hidden">
                                 <div
@@ -254,8 +265,16 @@ export default function PontoPage() {
                     </Card>
 
                     <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 md:p-6">
-                            <CardTitle className="text-xs md:text-sm font-medium leading-none">Meta Semanal</CardTitle>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-0 md:px-6 md:pt-0">
+                            <div className="space-y-1">
+                                <CardTitle className="text-xs md:text-2xl font-medium leading-none">
+                                    <span className="md:hidden">Meta Semanal</span>
+                                    <span className="hidden md:inline">Meta de Horas Semanais</span>
+                                </CardTitle>
+                                <p className="hidden md:block text-xs text-muted-foreground">
+                                    Defina o objetivo para a equipe.
+                                </p>
+                            </div>
                             <Save className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent className="p-4 md:p-6 pt-0">
@@ -282,14 +301,14 @@ export default function PontoPage() {
                                 </Button>
                             </div>
                             <p className="hidden md:block text-xs text-muted-foreground mt-2">
-                                Mínimo para "Cumpriu".
+                                Horas mínimas para status "Cumpriu".
                             </p>
                         </CardContent>
                     </Card>
                 </div>
 
                 <Card className="h-full border-none shadow-none md:border md:shadow-sm">
-                    <CardHeader className="px-0 md:px-6">
+                    <CardHeader className="px-6 md:px-6">
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                             <div>
                                 <CardTitle className="text-xl md:text-2xl">Visão Geral de Membros</CardTitle>
@@ -314,7 +333,7 @@ export default function PontoPage() {
                         ) : (
                             <>
                                 {/* Desktop Table */}
-                                <div className="hidden md:block rounded-md border h-[600px] overflow-y-auto relative">
+                                <div className="hidden md:block rounded-md border h-[400px] overflow-y-auto relative">
                                     <Table>
                                         <TableHeader className="sticky top-0 bg-background z-10 shadow-sm">
                                             <TableRow>
