@@ -233,3 +233,24 @@ Example:
 - Keep text ASCII-only unless the file already uses Unicode.
 - Avoid adding dependencies without explicit request.
 - Prefer small, focused edits and reuse existing components.
+
+## Headless UI Combobox inside Shadcn Dialog
+- **Problem**: When using `@headlessui/react` Combobox inside a Shadcn (Radix) Dialog, the dropdown options may be unresponsive to clicks ("frozen") because the Dialog blocks interaction with external portals.
+- **Solution (Manual Positioning Strategy)**:
+  1. **Disable Portal**: Set `portal={false}` on `ComboboxOptions`.
+  2. **Remove Anchor**: Do NOT use the `anchor` prop.
+  3. **Manual CSS Positioning**: Use absolute positioning to place the dropdown relative to the input container.
+  4. **Z-Index Hierarchy**: Ensure specific stacking order (e.g., Overlay: 30, Content: 40, Combobox: 50).
+
+  Example:
+  ```tsx
+  <div className="relative">
+    <ComboboxInput ... />
+    <ComboboxOptions
+      portal={false}
+      className="absolute top-full left-0 z-50 mt-1 w-full ..."
+    >
+      ...
+    </ComboboxOptions>
+  </div>
+  ```
