@@ -30,10 +30,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import {
-  Popover,
-  PopoverAnchor,
-  PopoverContent,
-} from '@/components/ui/popover';
+  Combobox,
+  ComboboxInput,
+  ComboboxOption,
+  ComboboxOptions
+} from '@headlessui/react';
 import {
   Select,
   SelectContent,
@@ -179,14 +180,9 @@ export default function ProjetoPage() {
   const [isSavingActivity, setIsSavingActivity] = React.useState(false);
   const [memberOptions, setMemberOptions] = React.useState<MemberOption[]>([]);
   const [isMembersLoading, setIsMembersLoading] = React.useState(false);
-  const [isOwnerOpen, setIsOwnerOpen] = React.useState(false);
-  const ownerInputRef = React.useRef<HTMLInputElement | null>(null);
-  const closeOwnerTimeout = React.useRef<NodeJS.Timeout | null>(null);
   const [isEditOpen, setIsEditOpen] = React.useState(false);
   const [isSavingEdit, setIsSavingEdit] = React.useState(false);
-  const [isEditOwnerOpen, setIsEditOwnerOpen] = React.useState(false);
-  const editOwnerInputRef = React.useRef<HTMLInputElement | null>(null);
-  const closeEditOwnerTimeout = React.useRef<NodeJS.Timeout | null>(null);
+
   const [newActivity, setNewActivity] = React.useState({
     name: '',
     description: '',
@@ -356,22 +352,7 @@ export default function ProjetoPage() {
   const filteredEditMembers = memberOptions.filter((member) =>
     member.name.toLowerCase().includes(editActivity.owner.toLowerCase().trim())
   );
-  const closeOwnerPopover = React.useCallback(() => {
-    if (closeOwnerTimeout.current) {
-      clearTimeout(closeOwnerTimeout.current);
-    }
-    closeOwnerTimeout.current = setTimeout(() => {
-      setIsOwnerOpen(false);
-    }, 120);
-  }, []);
-  const closeEditOwnerPopover = React.useCallback(() => {
-    if (closeEditOwnerTimeout.current) {
-      clearTimeout(closeEditOwnerTimeout.current);
-    }
-    closeEditOwnerTimeout.current = setTimeout(() => {
-      setIsEditOwnerOpen(false);
-    }, 120);
-  }, []);
+
 
   const checkMemberConflicts = async (ownerId: string, dueDate: string): Promise<{ hasConflict: boolean; message: string; tasksCount: number; tasks: ConflictingTask[] }> => {
     if (!firebaseDb || !ownerId || !dueDate) {
@@ -415,7 +396,7 @@ export default function ProjetoPage() {
         if (Array.isArray(data.Activities)) {
           data.Activities.forEach((activity) => {
             if (activity.ownerId === ownerId && activity.dueAt) {
-              projectTasks.push({ 
+              projectTasks.push({
                 title: activity.name || 'Tarefa',
                 due: activity.dueAt,
                 source: `Projeto: ${data.name || 'Sem nome'}`
@@ -451,10 +432,10 @@ export default function ProjetoPage() {
       });
 
       const totalConflicts = allConflictingTasks.length;
-      
+
       if (totalConflicts > 0) {
         let message = '';
-        
+
         if (tasksNext7Days.length > 0 && tasksNearDueDate.length > 0) {
           message = `O responsável possui ${tasksNext7Days.length} tarefa(s) nos próximos 7 dias e ${tasksNearDueDate.length} tarefa(s) próximas ao prazo desta atividade (±3 dias).`;
         } else if (tasksNext7Days.length > 0) {
@@ -462,7 +443,7 @@ export default function ProjetoPage() {
         } else {
           message = `O responsável possui ${tasksNearDueDate.length} tarefa(s) próximas ao prazo desta atividade (±3 dias).`;
         }
-        
+
         return { hasConflict: true, message, tasksCount: totalConflicts, tasks: allConflictingTasks };
       }
 
@@ -543,7 +524,7 @@ export default function ProjetoPage() {
 
   const saveActivity = async (activityPayload: Activity) => {
     if (!projectId || !firebaseDb) return;
-    
+
     setIsSavingActivity(true);
     try {
       await updateDoc(doc(firebaseDb, 'projects', projectId), {
@@ -572,7 +553,7 @@ export default function ProjetoPage() {
 
   const handleConfirmWithConflict = async () => {
     if (!pendingActivity) return;
-    
+
     setConflictWarning({ show: false, message: '', tasksCount: 0, tasks: [] });
     await saveActivity(pendingActivity);
     setPendingActivity(null);
@@ -772,16 +753,30 @@ export default function ProjetoPage() {
                     <label className='text-sm font-medium'>
                       Responsavel
                     </label>
-                    <Popover open={isOwnerOpen} onOpenChange={setIsOwnerOpen}>
-                      <PopoverAnchor asChild>
-                        <div>
-                          <Input
-                            ref={ownerInputRef}
-                            placeholder='Digite ou selecione'
-                            value={newActivity.owner}
-                            disabled={isSavingActivity}
-                            onFocus={() => setIsOwnerOpen(true)}
-                            onBlur={closeOwnerPopover}
+                    <div className="relative">
+                      <Combobox
+                        value={newActivity.owner}
+                        onChange={(value: any) => {
+                          // value can be the object if selected from list, or string if typed (though strictly Combobox returns the value prop of Option)
+                          // Headless UI Combobox value is controlled.
+                          // Actually, for custom input handling + selection, we usually rely on onChange providing the 'value' prop of the Option.
+                          const member = typeof value === 'string'
+                            ? memberOptions.find(m => m.name === value)
+                            : value;
+
+                          if (member) {
+                            setNewActivity((current) => ({
+                              ...current,
+                              owner: member.name,
+                              ownerId: member.id
+                            }));
+                          }
+                        }}
+                      >
+                        <div className="relative">
+                          <ComboboxInput
+                            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                            displayValue={(item: any) => typeof item === 'string' ? item : item?.name}
                             onChange={(event) => {
                               const value = event.target.value;
                               setNewActivity((current) => ({
@@ -794,63 +789,49 @@ export default function ProjetoPage() {
                                   ownerId: ''
                                 }));
                               }
-                              if (!isOwnerOpen) {
-                                setIsOwnerOpen(true);
-                              }
                             }}
+                            placeholder='Digite ou selecione'
                           />
                         </div>
-                      </PopoverAnchor>
-                      <PopoverContent
-                        align='start'
-                        side='top'
-                        className='w-[--radix-popover-trigger-width] p-1'
-                        onOpenAutoFocus={(event) => event.preventDefault()}
-                        onCloseAutoFocus={(event) => event.preventDefault()}
-                        onMouseDown={(event) => event.preventDefault()}
-                      >
-                        {isMembersLoading ? (
-                          <div className='text-muted-foreground px-2 py-2 text-sm'>
-                            Carregando membros...
-                          </div>
-                        ) : filteredMembers.length === 0 ? (
-                          <div className='text-muted-foreground px-2 py-2 text-sm'>
-                            Nenhum membro encontrado.
-                          </div>
-                        ) : (
-                          <ScrollArea className='max-h-48'>
-                            <div className='flex flex-col gap-1 p-1'>
-                              {filteredMembers.map((member) => (
-                                <button
-                                  key={member.id}
-                                  type='button'
-                                  className='hover:bg-accent flex flex-col rounded-md px-2 py-1.5 text-left text-sm'
-                                  onMouseDown={(event) => event.preventDefault()}
-                                  onClick={() => {
-                                    setNewActivity((current) => ({
-                                      ...current,
-                                      owner: member.name,
-                                      ownerId: member.id
-                                    }));
-                                    setIsOwnerOpen(false);
-                                    ownerInputRef.current?.focus();
-                                  }}
-                                >
-                                  <span className='font-medium'>
-                                    {member.name}
-                                  </span>
-                                  {member.role ? (
-                                    <span className='text-muted-foreground text-xs'>
-                                      {member.role}
-                                    </span>
-                                  ) : null}
-                                </button>
-                              ))}
+                        <ComboboxOptions
+                          anchor="bottom start"
+                          className="z-50 w-[var(--input-width)] min-w-[8rem] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 p-1"
+                        >
+                          {isMembersLoading ? (
+                            <div className='text-muted-foreground px-2 py-2 text-sm'>
+                              Carregando membros...
                             </div>
-                          </ScrollArea>
-                        )}
-                      </PopoverContent>
-                    </Popover>
+                          ) : filteredMembers.length === 0 ? (
+                            <div className='text-muted-foreground px-2 py-2 text-sm'>
+                              Nenhum membro encontrado.
+                            </div>
+                          ) : (
+                            <ScrollArea className='max-h-48'>
+                              <div className='flex flex-col gap-1'>
+                                {filteredMembers.map((member) => (
+                                  <ComboboxOption
+                                    key={member.id}
+                                    value={member}
+                                    className="data-[focus]:bg-accent data-[focus]:text-accent-foreground relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none"
+                                  >
+                                    <div className="flex flex-col">
+                                      <span className='font-medium'>
+                                        {member.name}
+                                      </span>
+                                      {member.role ? (
+                                        <span className='text-muted-foreground text-xs'>
+                                          {member.role}
+                                        </span>
+                                      ) : null}
+                                    </div>
+                                  </ComboboxOption>
+                                ))}
+                              </div>
+                            </ScrollArea>
+                          )}
+                        </ComboboxOptions>
+                      </Combobox>
+                    </div>
                   </div>
                 </div>
                 <div className='grid grid-cols-1 gap-2 sm:grid-cols-2'>
@@ -994,23 +975,23 @@ export default function ProjetoPage() {
                       </div>
                     ) : (
                       activityUpdates.map((update) => (
-                          <div
-                            key={update.id}
-                            className='space-y-2 rounded-md border p-3'
-                          >
-                            <div className='flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between'>
-                              <div className='text-sm font-medium'>
-                                {update.author}
-                              </div>
-                              <div className='text-muted-foreground text-xs'>
-                                {update.time}
-                              </div>
+                        <div
+                          key={update.id}
+                          className='space-y-2 rounded-md border p-3'
+                        >
+                          <div className='flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between'>
+                            <div className='text-sm font-medium'>
+                              {update.author}
                             </div>
-                            <div className='text-muted-foreground text-sm'>
-                              {update.note}
+                            <div className='text-muted-foreground text-xs'>
+                              {update.time}
                             </div>
                           </div>
-                        ))
+                          <div className='text-muted-foreground text-sm'>
+                            {update.note}
+                          </div>
+                        </div>
+                      ))
                     )}
                   </div>
                 </ScrollArea>
@@ -1063,19 +1044,26 @@ export default function ProjetoPage() {
                   }))
                 }
               />
-              <Popover
-                open={isEditOwnerOpen}
-                onOpenChange={setIsEditOwnerOpen}
-              >
-                <PopoverAnchor asChild>
-                  <div>
-                    <Input
-                      ref={editOwnerInputRef}
-                      placeholder='Responsavel'
-                      value={editActivity.owner}
-                      disabled={isSavingEdit}
-                      onFocus={() => setIsEditOwnerOpen(true)}
-                      onBlur={closeEditOwnerPopover}
+              <div className='relative'>
+                <Combobox
+                  value={editActivity.owner}
+                  onChange={(value: any) => {
+                    const member = typeof value === 'string'
+                      ? memberOptions.find(m => m.name === value)
+                      : value;
+
+                    if (member) {
+                      setEditActivity((current) => ({
+                        ...current,
+                        owner: member.name,
+                        ownerId: member.id
+                      }));
+                    }
+                  }}
+                >
+                  <div className="relative">
+                    <ComboboxInput
+                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
                       onChange={(event) => {
                         const value = event.target.value;
                         setEditActivity((current) => ({
@@ -1088,63 +1076,49 @@ export default function ProjetoPage() {
                             ownerId: ''
                           }));
                         }
-                        if (!isEditOwnerOpen) {
-                          setIsEditOwnerOpen(true);
-                        }
                       }}
+                      placeholder='Responsavel'
                     />
                   </div>
-                </PopoverAnchor>
-                <PopoverContent
-                  align='start'
-                  side='top'
-                  className='w-[--radix-popover-trigger-width] p-1'
-                  onOpenAutoFocus={(event) => event.preventDefault()}
-                  onCloseAutoFocus={(event) => event.preventDefault()}
-                  onMouseDown={(event) => event.preventDefault()}
-                >
-                  {isMembersLoading ? (
-                    <div className='text-muted-foreground px-2 py-2 text-sm'>
-                      Carregando membros...
-                    </div>
-                  ) : filteredEditMembers.length === 0 ? (
-                    <div className='text-muted-foreground px-2 py-2 text-sm'>
-                      Nenhum membro encontrado.
-                    </div>
-                  ) : (
-                    <ScrollArea className='max-h-48'>
-                      <div className='flex flex-col gap-1 p-1'>
-                        {filteredEditMembers.map((member) => (
-                          <button
-                            key={member.id}
-                            type='button'
-                            className='hover:bg-accent flex flex-col rounded-md px-2 py-1.5 text-left text-sm'
-                            onMouseDown={(event) => event.preventDefault()}
-                            onClick={() => {
-                              setEditActivity((current) => ({
-                                ...current,
-                                owner: member.name,
-                                ownerId: member.id
-                              }));
-                              setIsEditOwnerOpen(false);
-                              editOwnerInputRef.current?.focus();
-                            }}
-                          >
-                            <span className='font-medium'>
-                              {member.name}
-                            </span>
-                            {member.role ? (
-                              <span className='text-muted-foreground text-xs'>
-                                {member.role}
-                              </span>
-                            ) : null}
-                          </button>
-                        ))}
+                  <ComboboxOptions
+                    anchor="bottom start"
+                    className="z-50 w-[var(--input-width)] min-w-[8rem] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 p-1"
+                  >
+                    {isMembersLoading ? (
+                      <div className='text-muted-foreground px-2 py-2 text-sm'>
+                        Carregando membros...
                       </div>
-                    </ScrollArea>
-                  )}
-                </PopoverContent>
-              </Popover>
+                    ) : filteredEditMembers.length === 0 ? (
+                      <div className='text-muted-foreground px-2 py-2 text-sm'>
+                        Nenhum membro encontrado.
+                      </div>
+                    ) : (
+                      <ScrollArea className='max-h-48'>
+                        <div className='flex flex-col gap-1'>
+                          {filteredEditMembers.map((member) => (
+                            <ComboboxOption
+                              key={member.id}
+                              value={member}
+                              className="data-[focus]:bg-accent data-[focus]:text-accent-foreground relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none"
+                            >
+                              <div className="flex flex-col">
+                                <span className='font-medium'>
+                                  {member.name}
+                                </span>
+                                {member.role ? (
+                                  <span className='text-muted-foreground text-xs'>
+                                    {member.role}
+                                  </span>
+                                ) : null}
+                              </div>
+                            </ComboboxOption>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    )}
+                  </ComboboxOptions>
+                </Combobox>
+              </div>
             </div>
             <Select
               value={editActivity.priority}
