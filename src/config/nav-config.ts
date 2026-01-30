@@ -90,6 +90,13 @@ export const navItems: NavItem[] = [
     items: []
   },
   {
+    title: 'Ponto',
+    url: '/dashboard/ponto',
+    icon: 'clock',
+    isActive: false,
+    items: []
+  },
+  {
     title: 'Estatisticas',
     url: '/dashboard/estatisticas',
     icon: 'chart',

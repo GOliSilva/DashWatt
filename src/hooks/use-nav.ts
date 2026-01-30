@@ -24,18 +24,18 @@ export function useFilteredNavItems(items: NavItem[]) {
 
   return useMemo(() => {
     const isDevelopment = process.env.NODE_ENV === 'development';
-    
+
     if (isDevelopment) {
       return items;
     }
-    
+
     const currentMember = members.find(
       (member) => member.id === user?.uid || member.email === user?.email
     );
     const role = currentMember?.role?.toLowerCase().trim() ?? '';
     const allowAcompanhamento = role !== '' && role !== 'consultor';
 
-    const allowedUrls = new Set(['/dashboard/individual']);
+    const allowedUrls = new Set(['/dashboard/individual', '/dashboard/ponto']);
     if (allowAcompanhamento) {
       allowedUrls.add('/dashboard/acompanhamento');
     }
