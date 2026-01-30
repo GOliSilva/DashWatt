@@ -1,4 +1,4 @@
- 'use client';
+'use client';
 import * as React from 'react';
 import Link from 'next/link';
 import PageContainer from '@/components/layout/page-container';
@@ -270,10 +270,10 @@ export default function AcompanhamentoPage() {
   // Mapear projects do contexto para o formato da UI
   const projectList = React.useMemo(() => {
     return contextProjects.map((project) => {
-      const updatedLabel = project.updatedAt 
+      const updatedLabel = project.updatedAt
         ? format(project.updatedAt.toDate?.() || project.updatedAt, 'dd/MM/yyyy')
         : '---';
-      const startLabel = project.start 
+      const startLabel = project.start
         ? format(project.start.toDate?.() || project.start, 'dd/MM/yyyy')
         : '';
 
@@ -368,8 +368,8 @@ export default function AcompanhamentoPage() {
     const scopedMembers = isGeneral
       ? contextMembers
       : contextMembers.filter(
-          (member) => normalizeValue(member.sector) === selectedSector
-        );
+        (member) => normalizeValue(member.sector) === selectedSector
+      );
 
     const memberIds = new Set(scopedMembers.map((member) => member.id));
     const occupiedIds = new Set<string>();
@@ -651,91 +651,91 @@ export default function AcompanhamentoPage() {
   );
 
   const projectsCardContent = (
-      <CardContent>
-        <ScrollArea className='h-64 pr-3'>
-          <div className='space-y-2'>
-            {isDataLoading ? (
-              <div className='space-y-2'>
-                {Array.from({ length: 4 }).map((_, index) => (
-                  <div key={`project-skeleton-${index}`} className='rounded-md border p-3'>
-                    <Skeleton className='h-4 w-2/3' />
-                    <Skeleton className='mt-2 h-3 w-1/2' />
-                  </div>
-                ))}
-              </div>
-            ) : filteredProjects.length === 0 ? (
-              <div className='text-muted-foreground text-sm'>
-                Nenhum projeto encontrado para o filtro selecionado.
-              </div>
-            ) : (
-              filteredProjects.map((project) => (
-                <div
-                  key={project.id}
-                  role='button'
-                  tabIndex={0}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault();
-                      router.push(`/dashboard/acompanhamento/projetos/${project.id}`);
-                    }
-                  }}
-                  onClick={() => router.push(`/dashboard/acompanhamento/projetos/${project.id}`)}
-                  className='hover:bg-accent focus-visible:ring-ring/50 flex w-full items-start justify-between gap-3 rounded-md border p-3 text-left transition-colors focus-visible:ring-[3px] focus-visible:outline-none'
-                >
-                  <div className='flex flex-col'>
-                    <span className='text-sm font-medium'>
-                      {project.name}
+    <CardContent className='flex-1 min-h-0 flex flex-col'>
+      <ScrollArea className='flex-1 min-h-0 pr-3 -mr-3'>
+        <div className='space-y-2'>
+          {isDataLoading ? (
+            <div className='space-y-2'>
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div key={`project-skeleton-${index}`} className='rounded-md border p-3'>
+                  <Skeleton className='h-4 w-2/3' />
+                  <Skeleton className='mt-2 h-3 w-1/2' />
+                </div>
+              ))}
+            </div>
+          ) : filteredProjects.length === 0 ? (
+            <div className='text-muted-foreground text-sm'>
+              Nenhum projeto encontrado para o filtro selecionado.
+            </div>
+          ) : (
+            filteredProjects.map((project) => (
+              <div
+                key={project.id}
+                role='button'
+                tabIndex={0}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    router.push(`/dashboard/acompanhamento/projetos/${project.id}`);
+                  }
+                }}
+                onClick={() => router.push(`/dashboard/acompanhamento/projetos/${project.id}`)}
+                className='hover:bg-accent focus-visible:ring-ring/50 flex w-full items-start justify-between gap-3 rounded-md border p-3 text-left transition-colors focus-visible:ring-[3px] focus-visible:outline-none'
+              >
+                <div className='flex flex-col'>
+                  <span className='text-sm font-medium'>
+                    {project.name}
+                  </span>
+                  <span className='text-muted-foreground text-xs'>
+                    {project.status} - Atualizado {project.updated}
+                  </span>
+                </div>
+                <div className='ml-auto flex items-start gap-2'>
+                  <div className='flex flex-col items-end gap-1'>
+                    <span className='text-muted-foreground text-[10px] uppercase'>
+                      {project.area || '--'}
                     </span>
-                    <span className='text-muted-foreground text-xs'>
-                      {project.status} - Atualizado {project.updated}
-                    </span>
+                    <Badge variant='outline'>{project.health}</Badge>
                   </div>
-                  <div className='ml-auto flex items-start gap-2'>
-                    <div className='flex flex-col items-end gap-1'>
-                      <span className='text-muted-foreground text-[10px] uppercase'>
-                        {project.area || '--'}
-                      </span>
-                      <Badge variant='outline'>{project.health}</Badge>
-                    </div>
-                    <div className='flex items-center gap-1'>
-                      <Button
-                        type='button'
-                        size='icon'
-                        variant='ghost'
-                        className='h-9 w-9 cursor-pointer self-center rounded-md border hover:bg-white/10 [&_svg]:!h-[1em] [&_svg]:!w-[1em]'
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          openEditProject(project);
-                        }}
-                        aria-label='Editar projeto'
-                      >
-                        <FontAwesomeIcon icon={faPenToSquare} size='lg' />
-                      </Button>
-                      <Button
-                        type='button'
-                        size='icon'
-                        variant='ghost'
-                        className='h-9 w-9 cursor-pointer self-center rounded-md border hover:bg-white/10 [&_svg]:!h-[1em] [&_svg]:!w-[1em]'
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          openDeleteProject(project);
-                        }}
-                        aria-label='Excluir projeto'
-                      >
-                        <FontAwesomeIcon icon={faXmark} size='lg' />
-                      </Button>
-                    </div>
+                  <div className='flex items-center gap-1'>
+                    <Button
+                      type='button'
+                      size='icon'
+                      variant='ghost'
+                      className='h-9 w-9 cursor-pointer self-center rounded-md border hover:bg-white/10 [&_svg]:!h-[1em] [&_svg]:!w-[1em]'
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        openEditProject(project);
+                      }}
+                      aria-label='Editar projeto'
+                    >
+                      <FontAwesomeIcon icon={faPenToSquare} size='lg' />
+                    </Button>
+                    <Button
+                      type='button'
+                      size='icon'
+                      variant='ghost'
+                      className='h-9 w-9 cursor-pointer self-center rounded-md border hover:bg-white/10 [&_svg]:!h-[1em] [&_svg]:!w-[1em]'
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        openDeleteProject(project);
+                      }}
+                      aria-label='Excluir projeto'
+                    >
+                      <FontAwesomeIcon icon={faXmark} size='lg' />
+                    </Button>
                   </div>
                 </div>
-              ))
-            )}
-          </div>
-        </ScrollArea>
-      </CardContent>
+              </div>
+            ))
+          )}
+        </div>
+      </ScrollArea>
+    </CardContent>
   );
 
   const projectsCardMobile = (
-    <Card className='h-105'>
+    <Card className='h-full flex flex-col min-h-0'>
       <CardHeader>
         <CardTitle>Projetos em acompanhamento</CardTitle>
         <CardDescription>Lista priorizada com status</CardDescription>
@@ -765,7 +765,7 @@ export default function AcompanhamentoPage() {
   );
 
   const projectsCardDesktop = (
-    <Card className='h-105'>
+    <Card className='h-105 flex flex-col'>
       <CardHeader>
         <CardTitle>Projetos em acompanhamento</CardTitle>
         <CardDescription>Lista priorizada com status</CardDescription>
@@ -797,7 +797,7 @@ export default function AcompanhamentoPage() {
   );
 
   const occupancyCard = (
-    <div className='h-105 [&>div]:h-full'>
+    <div className='h-full lg:h-105 [&>div]:h-full'>
       {isDataLoading ? (
         <Skeleton className='h-full w-full' />
       ) : occupancyMetrics.totalMembers === 0 ? (
@@ -836,13 +836,13 @@ export default function AcompanhamentoPage() {
   );
 
   const membersCard = (
-    <Card className='h-105'>
+    <Card className='h-full lg:h-105 flex flex-col'>
       <CardHeader>
         <CardTitle>Membros da equipe</CardTitle>
         <CardDescription>Ultima atividade registrada</CardDescription>
       </CardHeader>
-      <CardContent>
-        <ScrollArea className='h-64 pr-3'>
+      <CardContent className='flex-1 min-h-0 flex flex-col'>
+        <ScrollArea className='flex-1 min-h-0 pr-3 -mr-3'>
           <div className='space-y-2'>
             {isDataLoading ? (
               <div className='space-y-2'>
@@ -853,44 +853,44 @@ export default function AcompanhamentoPage() {
                   </div>
                 ))}
               </div>
-              ) : filteredMembers.length === 0 ? (
-                <div className='text-muted-foreground text-sm'>
-                  Nenhum membro no setor selecionado.
-                </div>
-              ) : (
-                filteredMembers.map((member) => (
-                  <Link
-                    key={member.id}
-                    href={`/dashboard/acompanhamento/membros/${member.id}`}
-                    className='hover:bg-accent focus-visible:ring-ring/50 flex w-full items-start justify-between gap-3 rounded-md border p-3 text-left transition-colors focus-visible:ring-[3px] focus-visible:outline-none'
-                  >
-                    <div className='flex flex-col'>
-                      <span className='text-sm font-medium'>
-                        {member.name}
-                      </span>
-                      <span className='text-muted-foreground text-xs'>
-                        {member.role} - {member.activity}
-                      </span>
-                    </div>
-                    <Badge variant='outline'>
-                      {member.sector || '--'}
-                    </Badge>
-                  </Link>
-                ))
-              )}
-            </div>
-          </ScrollArea>
-        </CardContent>
+            ) : filteredMembers.length === 0 ? (
+              <div className='text-muted-foreground text-sm'>
+                Nenhum membro no setor selecionado.
+              </div>
+            ) : (
+              filteredMembers.map((member) => (
+                <Link
+                  key={member.id}
+                  href={`/dashboard/acompanhamento/membros/${member.id}`}
+                  className='hover:bg-accent focus-visible:ring-ring/50 flex w-full items-start justify-between gap-3 rounded-md border p-3 text-left transition-colors focus-visible:ring-[3px] focus-visible:outline-none'
+                >
+                  <div className='flex flex-col'>
+                    <span className='text-sm font-medium'>
+                      {member.name}
+                    </span>
+                    <span className='text-muted-foreground text-xs'>
+                      {member.role} - {member.activity}
+                    </span>
+                  </div>
+                  <Badge variant='outline'>
+                    {member.sector || '--'}
+                  </Badge>
+                </Link>
+              ))
+            )}
+          </div>
+        </ScrollArea>
+      </CardContent>
     </Card>
   );
 
   const alertsCard = (
-    <Card className='h-full'>
+    <Card className='h-full lg:h-105 flex flex-col'>
       <CardHeader>
         <CardTitle>Alertas recentes</CardTitle>
         <CardDescription>Eventos que exigem atencao</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className='flex-1 overflow-auto'>
         <div className='space-y-3'>
           {alerts.map((alert) => (
             <div
@@ -984,27 +984,28 @@ export default function AcompanhamentoPage() {
       pageDescription='Visao geral das frentes em andamento'
       pageHeaderAction={areaFilterControl}
       hideHeaderOnMobile
+      scrollable={false}
     >
-      <div className='flex flex-1 flex-col space-y-3 md:space-y-4'>
-        <div className='block lg:hidden'>
-          <div className='mb-3 flex justify-end'>{areaFilterControl}</div>
-          <Tabs defaultValue='projects' className='w-full'>
+      <div className='flex h-full flex-col gap-3 md:gap-4 min-h-0'>
+        <div className='lg:hidden flex-1 flex flex-col min-h-0'>
+          <div className='mb-3 flex justify-end shrink-0'>{areaFilterControl}</div>
+          <Tabs defaultValue='projects' className='w-full flex flex-col flex-1 min-h-0'>
             <TabsList className='grid w-full grid-cols-4 h-auto'>
               <TabsTrigger value='projects' className='text-xs py-2'>Projetos</TabsTrigger>
               <TabsTrigger value='occupancy' className='text-xs py-2'>Ocupacao</TabsTrigger>
               <TabsTrigger value='members' className='text-xs py-2'>Membros</TabsTrigger>
               <TabsTrigger value='alerts' className='text-xs py-2'>Alertas</TabsTrigger>
             </TabsList>
-            <TabsContent value='projects' className='mt-3'>
+            <TabsContent value='projects' className='mt-3 flex-1 flex flex-col min-h-0'>
               {projectsCardMobile}
             </TabsContent>
-            <TabsContent value='occupancy' className='mt-3'>
+            <TabsContent value='occupancy' className='mt-3 flex-1 flex flex-col min-h-0'>
               {occupancyCard}
             </TabsContent>
-            <TabsContent value='members' className='mt-3'>
+            <TabsContent value='members' className='mt-3 flex-1 flex flex-col min-h-0'>
               {membersCard}
             </TabsContent>
-            <TabsContent value='alerts' className='mt-3'>
+            <TabsContent value='alerts' className='mt-3 flex-1 flex flex-col min-h-0'>
               {alertsCard}
             </TabsContent>
           </Tabs>
@@ -1221,9 +1222,8 @@ export default function AcompanhamentoPage() {
                       type='button'
                       variant='outline'
                       disabled={isSaving}
-                      className={`w-full justify-between ${
-                        startDate ? '' : 'text-muted-foreground'
-                      }`}
+                      className={`w-full justify-between ${startDate ? '' : 'text-muted-foreground'
+                        }`}
                     >
                       {startDate
                         ? format(startDate, 'dd/MM/yyyy')

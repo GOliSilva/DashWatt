@@ -56,9 +56,8 @@ export default function PageContainer({
     <ScrollArea className='h-[calc(100dvh-52px)]'>
       <div className='flex flex-1 flex-col p-4 md:px-6'>
         <div
-          className={`mb-4 flex items-center justify-between${
-            hideHeaderOnMobile ? ' hidden md:flex' : ''
-          }`}
+          className={`mb-4 flex items-center justify-between${hideHeaderOnMobile ? ' hidden md:flex' : ''
+            }`}
         >
           <div>
             <Heading
@@ -72,11 +71,10 @@ export default function PageContainer({
       </div>
     </ScrollArea>
   ) : (
-    <div className='flex flex-1 flex-col p-4 md:px-6'>
+    <div className='flex h-[calc(100dvh-3.5rem)] md:h-[calc(100dvh-4rem)] flex-col overflow-hidden p-4 md:px-6'>
       <div
-        className={`mb-4 flex items-center justify-between${
-          hideHeaderOnMobile ? ' hidden md:flex' : ''
-        }`}
+        className={`mb-4 flex items-center justify-between${hideHeaderOnMobile ? ' hidden md:flex' : ''
+          }`}
       >
         <div>
           <Heading
