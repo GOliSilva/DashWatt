@@ -12,6 +12,7 @@ import { doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { toast } from 'sonner';
 import { format, subWeeks, startOfWeek, endOfWeek } from 'date-fns';
 import { Search, Users, CheckCircle2, XCircle, Save } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useFirebaseData } from '@/contexts/firebase-data-context';
 import {
     Table,
@@ -44,6 +45,7 @@ type MemberStatus = {
 
 export default function PontoPage() {
     const { members: contextMembers, isLoading: isLoadingContext, currentMember } = useFirebaseData();
+    const router = useRouter();
     const [loading, setLoading] = React.useState(true);
     const [members, setMembers] = React.useState<Member[]>([]);
     const [searchTerm, setSearchTerm] = React.useState('');
@@ -62,7 +64,18 @@ export default function PontoPage() {
         }
     }, [contextMembers]);
 
-    // Load Global Settings with Real-time listener
+    // Role based access control
+    React.useEffect(() => {
+        if (!isLoadingContext && currentMember) {
+            const allowedRoles = ['Diretor', 'Presidente', 'Assessor'];
+            if (!allowedRoles.includes(currentMember.role)) {
+                toast.error('Acesso não autorizado', {
+                    description: 'Você não tem permissão para acessar esta página.'
+                });
+                router.push('/dashboard/individual');
+            }
+        }
+    }, [currentMember, isLoadingContext]);
     React.useEffect(() => {
         if (!firebaseDb) return;
 
@@ -218,20 +231,20 @@ export default function PontoPage() {
                     </p>
                 </div>
 
-                <div className="grid gap-6 md:grid-cols-2">
+                <div className="grid grid-cols-2 gap-3 md:gap-6">
                     <Card>
-                        <CardHeader className="flex flex-row items-center justify-between pb-2">
-                            <CardTitle className="text-sm font-medium">Presença em Tempo Real</CardTitle>
-                            <Users className="h-4 w-4 text-muted-foreground" />
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 md:p-6">
+                            <CardTitle className="text-xs md:text-sm font-medium leading-none">Em Tempo Real</CardTitle>
+                            <Users className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
                         </CardHeader>
-                        <CardContent>
-                            <div className="flex items-baseline gap-2">
-                                <span className="text-3xl font-bold text-green-600 dark:text-green-400">
+                        <CardContent className="p-4 md:p-6 pt-0">
+                            <div className="flex flex-col md:flex-row items-start md:items-baseline gap-1 md:gap-2">
+                                <span className="text-2xl md:text-3xl font-bold text-green-600 dark:text-green-400">
                                     {stats.working}
                                 </span>
-                                <span className="text-muted-foreground">/ {stats.total} membros trabalhando</span>
+                                <span className="text-xs md:text-sm text-muted-foreground">de {stats.total} ativos</span>
                             </div>
-                            <div className="h-2 w-full bg-secondary mt-3 rounded-full overflow-hidden">
+                            <div className="h-1.5 md:h-2 w-full bg-secondary mt-2 md:mt-3 rounded-full overflow-hidden">
                                 <div
                                     className="h-full bg-green-500 transition-all duration-500"
                                     style={{ width: `${stats.total > 0 ? (stats.working / stats.total) * 100 : 0}%` }}
@@ -241,49 +254,50 @@ export default function PontoPage() {
                     </Card>
 
                     <Card>
-                        <CardHeader className="flex flex-row items-center justify-between pb-2">
-                            <CardTitle className="text-sm font-medium">Meta de Horas Semanais</CardTitle>
-                            <Save className="h-4 w-4 text-muted-foreground" />
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 md:p-6">
+                            <CardTitle className="text-xs md:text-sm font-medium leading-none">Meta Semanal</CardTitle>
+                            <Save className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="p-4 md:p-6 pt-0">
                             <div className="flex gap-2 items-center">
                                 <div className="relative flex-1">
                                     <Input
                                         type="number"
                                         value={newMinHours}
                                         onChange={(e) => setNewMinHours(e.target.value)}
-                                        placeholder="Ex: 40"
-                                        className="pr-12"
+                                        placeholder="40"
+                                        className="pr-8 md:pr-12 h-8 md:h-10 text-sm"
                                         disabled={!isAdmin}
                                     />
-                                    <span className="absolute right-3 top-2.5 text-xs text-muted-foreground">horas</span>
+                                    <span className="absolute right-2 md:right-3 top-2 md:top-2.5 text-[10px] md:text-xs text-muted-foreground">h</span>
                                 </div>
                                 <Button
                                     onClick={handleSaveMinHours}
                                     disabled={isSavingHours || !isAdmin}
                                     variant="outline"
                                     size="sm"
+                                    className="h-8 md:h-10 px-2 md:px-3 text-xs md:text-sm"
                                 >
-                                    {isSavingHours ? 'Salvando...' : 'Atualizar'}
+                                    {isSavingHours ? '...' : 'OK'}
                                 </Button>
                             </div>
-                            <p className="text-xs text-muted-foreground mt-2">
-                                Define o mínimo esperado para "Cumpriu" nas colunas semanais.
+                            <p className="hidden md:block text-xs text-muted-foreground mt-2">
+                                Mínimo para "Cumpriu".
                             </p>
                         </CardContent>
                     </Card>
                 </div>
 
-                <Card className="h-full">
-                    <CardHeader>
-                        <div className="flex items-center justify-between">
+                <Card className="h-full border-none shadow-none md:border md:shadow-sm">
+                    <CardHeader className="px-0 md:px-6">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                             <div>
-                                <CardTitle>Visão Geral de Membros</CardTitle>
+                                <CardTitle className="text-xl md:text-2xl">Visão Geral de Membros</CardTitle>
                                 <CardDescription>
                                     Acompanhamento de metas da semana atual e anterior.
                                 </CardDescription>
                             </div>
-                            <div className="relative w-72">
+                            <div className="relative w-full md:w-72">
                                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input
                                     placeholder="Buscar por nome ou setor..."
@@ -298,118 +312,179 @@ export default function PontoPage() {
                         {loading ? (
                             <div className="text-center py-10">Carregando dados...</div>
                         ) : (
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Membro</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead className="text-center">Semana Passada</TableHead>
-                                        <TableHead className="text-center">Semana Atual</TableHead>
-                                        <TableHead className="text-right">Último Registro</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
+                            <>
+                                {/* Desktop Table */}
+                                <div className="hidden md:block rounded-md border h-[600px] overflow-y-auto relative">
+                                    <Table>
+                                        <TableHeader className="sticky top-0 bg-background z-10 shadow-sm">
+                                            <TableRow>
+                                                <TableHead>Membro</TableHead>
+                                                <TableHead>Status</TableHead>
+                                                <TableHead className="text-center">Semana Passada</TableHead>
+                                                <TableHead className="text-center">Semana Atual</TableHead>
+                                                <TableHead className="text-right">Último Registro</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {filteredMembers.map((member) => {
+                                                const status = calculateMemberStatus(member);
+                                                const metLastWeek = minWeeklyHours > 0 && status.hoursLastWeek >= minWeeklyHours;
+                                                const metWeek = minWeeklyHours > 0 && status.hoursWeek >= minWeeklyHours;
+
+                                                return (
+                                                    <TableRow key={member.id}>
+                                                        <TableCell className="font-medium">
+                                                            <div className="flex items-center gap-2">
+                                                                <Avatar className="h-8 w-8">
+                                                                    <AvatarFallback>{member.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+                                                                </Avatar>
+                                                                <div className="flex flex-col">
+                                                                    <span>{member.name}</span>
+                                                                    <div className="flex gap-2 text-xs text-muted-foreground">
+                                                                        <span>{member.role}</span>
+                                                                        <span>•</span>
+                                                                        <span>{member.sector || 'Geral'}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            {status.isWorking ? (
+                                                                <Badge className="bg-green-100 text-green-700 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-800">
+                                                                    <div className="w-1.5 h-1.5 bg-green-500 rounded-full mr-1.5 animate-pulse" />
+                                                                    Trabalhando
+                                                                </Badge>
+                                                            ) : (
+                                                                <Badge variant="secondary" className="text-muted-foreground">
+                                                                    Ausente
+                                                                </Badge>
+                                                            )}
+                                                        </TableCell>
+
+                                                        {/* Semana Passada */}
+                                                        <TableCell className="text-center">
+                                                            <div className="flex flex-col items-center">
+                                                                <div className={`flex items-center gap-1.5 font-medium ${metLastWeek
+                                                                    ? 'text-green-600 dark:text-green-400'
+                                                                    : status.hoursLastWeek > 0 ? 'text-orange-600' : 'text-muted-foreground'
+                                                                    }`}>
+                                                                    {metLastWeek ? (
+                                                                        <CheckCircle2 className="w-4 h-4" />
+                                                                    ) : (
+                                                                        <div className="w-4 h-4" />
+                                                                    )}
+                                                                    <span>{status.hoursLastWeek.toFixed(1)}h</span>
+                                                                </div>
+                                                            </div>
+                                                        </TableCell>
+
+                                                        {/* Semana Atual */}
+                                                        <TableCell className="text-center">
+                                                            <div className="flex flex-col items-center">
+                                                                <div className={`flex items-center gap-1.5 font-medium ${metWeek
+                                                                    ? 'text-green-600 dark:text-green-400'
+                                                                    : 'text-foreground'
+                                                                    }`}>
+                                                                    {metWeek ? (
+                                                                        <CheckCircle2 className="w-4 h-4" />
+                                                                    ) : (
+                                                                        <div className="w-4 h-4" />
+                                                                    )}
+                                                                    <span>{status.hoursWeek.toFixed(1)}h</span>
+                                                                </div>
+
+                                                                {/* Progress bar for current week */}
+                                                                {minWeeklyHours > 0 && (
+                                                                    <div className="w-20 h-1.5 bg-secondary rounded-full mt-1 overflow-hidden">
+                                                                        <div
+                                                                            className={`h-full rounded-full ${metWeek ? 'bg-green-500' : 'bg-primary'}`}
+                                                                            style={{ width: `${Math.min((status.hoursWeek / minWeeklyHours) * 100, 100)}%` }}
+                                                                        />
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </TableCell>
+
+                                                        <TableCell className="text-right">
+                                                            {status.lastRecord ? (
+                                                                <div className="text-sm">
+                                                                    <span className="font-medium">{status.lastRecord.type}</span>
+                                                                    <div className="text-xs text-muted-foreground">
+                                                                        {format(status.lastRecord.timestamp, "dd/MM HH:mm")}
+                                                                    </div>
+                                                                </div>
+                                                            ) : (
+                                                                <span className="text-muted-foreground text-xs">-</span>
+                                                            )}
+                                                        </TableCell>
+                                                    </TableRow>
+                                                );
+                                            })}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+
+                                {/* Mobile Cards (ListView) */}
+                                <div className="md:hidden space-y-3">
                                     {filteredMembers.map((member) => {
                                         const status = calculateMemberStatus(member);
                                         const metLastWeek = minWeeklyHours > 0 && status.hoursLastWeek >= minWeeklyHours;
                                         const metWeek = minWeeklyHours > 0 && status.hoursWeek >= minWeeklyHours;
 
                                         return (
-                                            <TableRow key={member.id}>
-                                                <TableCell className="font-medium">
-                                                    <div className="flex items-center gap-2">
-                                                        <Avatar className="h-8 w-8">
+                                            <div key={member.id} className="rounded-lg border p-4 bg-card text-card-foreground shadow-sm">
+                                                <div className="flex items-start justify-between mb-3">
+                                                    <div className="flex items-center gap-3">
+                                                        <Avatar className="h-10 w-10">
                                                             <AvatarFallback>{member.name.substring(0, 2).toUpperCase()}</AvatarFallback>
                                                         </Avatar>
-                                                        <div className="flex flex-col">
-                                                            <span>{member.name}</span>
-                                                            <div className="flex gap-2 text-xs text-muted-foreground">
-                                                                <span>{member.role}</span>
-                                                                <span>•</span>
-                                                                <span>{member.sector || 'Geral'}</span>
-                                                            </div>
+                                                        <div>
+                                                            <div className="font-semibold">{member.name}</div>
+                                                            <div className="text-xs text-muted-foreground">{member.role} • {member.sector || 'Geral'}</div>
                                                         </div>
                                                     </div>
-                                                </TableCell>
-                                                <TableCell>
                                                     {status.isWorking ? (
-                                                        <Badge className="bg-green-100 text-green-700 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-800">
-                                                            <div className="w-1.5 h-1.5 bg-green-500 rounded-full mr-1.5 animate-pulse" />
-                                                            Trabalhando
+                                                        <Badge className="bg-green-100 text-green-700 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-800 text-[10px] px-1.5">
+                                                            On
                                                         </Badge>
                                                     ) : (
-                                                        <Badge variant="secondary" className="text-muted-foreground">
-                                                            Ausente
+                                                        <Badge variant="secondary" className="text-muted-foreground text-[10px] px-1.5">
+                                                            Off
                                                         </Badge>
                                                     )}
-                                                </TableCell>
+                                                </div>
 
-                                                {/* Semana Passada */}
-                                                <TableCell className="text-center">
-                                                    <div className="flex flex-col items-center">
-                                                        <div className={`flex items-center gap-1.5 font-medium ${metLastWeek
-                                                            ? 'text-green-600 dark:text-green-400'
-                                                            : status.hoursLastWeek > 0 ? 'text-orange-600' : 'text-muted-foreground'
-                                                            }`}>
-                                                            {metLastWeek ? (
-                                                                <CheckCircle2 className="w-4 h-4" />
-                                                            ) : (
-                                                                <XCircle className="w-4 h-4" />
-                                                            )}
+                                                <div className="grid grid-cols-2 gap-4 text-sm mt-4 pt-4 border-t">
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className="text-xs text-muted-foreground">Semana Atual</span>
+                                                        <div className={`flex items-center gap-1.5 font-medium ${metWeek ? 'text-green-600 dark:text-green-400' : ''}`}>
+                                                            <span>{status.hoursWeek.toFixed(1)}h</span>
+                                                            {metWeek && <CheckCircle2 className="w-3.5 h-3.5" />}
+                                                        </div>
+                                                        {minWeeklyHours > 0 && (
+                                                            <div className="w-full h-1 bg-secondary rounded-full overflow-hidden">
+                                                                <div className={`h-full rounded-full ${metWeek ? 'bg-green-500' : 'bg-primary'}`} style={{ width: `${Math.min((status.hoursWeek / minWeeklyHours) * 100, 100)}%` }} />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex flex-col gap-1 text-right items-end">
+                                                        <span className="text-xs text-muted-foreground">Semana Passada</span>
+                                                        <div className={`flex items-center gap-1.5 font-medium ${metLastWeek ? 'text-green-600 dark:text-green-400' : status.hoursLastWeek > 0 ? 'text-orange-600' : 'text-muted-foreground'}`}>
                                                             <span>{status.hoursLastWeek.toFixed(1)}h</span>
                                                         </div>
-                                                        {minWeeklyHours > 0 && (
-                                                            <span className="text-[10px] text-muted-foreground">
-                                                                Meta: {minWeeklyHours}h
-                                                            </span>
-                                                        )}
                                                     </div>
-                                                </TableCell>
+                                                </div>
 
-                                                {/* Semana Atual */}
-                                                <TableCell className="text-center">
-                                                    <div className="flex flex-col items-center">
-                                                        <div className={`flex items-center gap-1.5 font-medium ${metWeek
-                                                            ? 'text-green-600 dark:text-green-400'
-                                                            : 'text-foreground'
-                                                            }`}>
-                                                            {metWeek ? (
-                                                                <CheckCircle2 className="w-4 h-4" />
-                                                            ) : (
-                                                                <div className="w-4 h-4" /> // Spacer
-                                                            )}
-                                                            <span>{status.hoursWeek.toFixed(1)}h</span>
-                                                        </div>
-
-                                                        {/* Progress bar for current week */}
-                                                        {minWeeklyHours > 0 && (
-                                                            <div className="w-20 h-1.5 bg-secondary rounded-full mt-1 overflow-hidden">
-                                                                <div
-                                                                    className={`h-full rounded-full ${metWeek ? 'bg-green-500' : 'bg-primary'}`}
-                                                                    style={{ width: `${Math.min((status.hoursWeek / minWeeklyHours) * 100, 100)}%` }}
-                                                                />
-                                                            </div>
-                                                        )}
+                                                {status.lastRecord && (
+                                                    <div className="mt-3 text-xs text-right text-muted-foreground">
+                                                        Último registro: {status.lastRecord.type} em {format(status.lastRecord.timestamp, "dd/MM HH:mm")}
                                                     </div>
-                                                </TableCell>
-
-                                                <TableCell className="text-right">
-                                                    {status.lastRecord ? (
-                                                        <div className="text-sm">
-                                                            <span className="font-medium">{status.lastRecord.type}</span>
-                                                            <div className="text-xs text-muted-foreground">
-                                                                {format(status.lastRecord.timestamp, "dd/MM HH:mm")}
-                                                            </div>
-                                                        </div>
-                                                    ) : (
-                                                        <span className="text-muted-foreground text-xs">-</span>
-                                                    )}
-                                                </TableCell>
-                                            </TableRow>
+                                                )}
+                                            </div>
                                         );
                                     })}
-                                </TableBody>
-                            </Table>
+                                </div>
+                            </>
                         )}
                     </CardContent>
                 </Card>
