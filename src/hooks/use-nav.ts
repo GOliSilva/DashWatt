@@ -23,11 +23,11 @@ export function useFilteredNavItems(items: NavItem[]) {
   const { members } = useFirebaseData();
 
   return useMemo(() => {
-    const isDevelopment = process.env.NODE_ENV === 'development';
+    // const isDevelopment = process.env.NODE_ENV === 'development';
 
-    if (isDevelopment) {
-      return items;
-    }
+    // if (isDevelopment) {
+    //   return items;
+    // }
 
     const currentMember = members.find(
       (member) => member.id === user?.uid || member.email === user?.email
@@ -35,9 +35,14 @@ export function useFilteredNavItems(items: NavItem[]) {
     const role = currentMember?.role?.toLowerCase().trim() ?? '';
     const allowAcompanhamento = role !== '' && role !== 'consultor';
 
-    const allowedUrls = new Set(['/dashboard/individual', '/dashboard/ponto']);
+    const allowedUrls = new Set(['/dashboard/individual']);
     if (allowAcompanhamento) {
       allowedUrls.add('/dashboard/acompanhamento');
+    }
+
+    const allowPonto = ['diretor', 'presidente', 'assessor'].includes(role);
+    if (allowPonto) {
+      allowedUrls.add('/dashboard/ponto');
     }
 
     const filterItem = (item: NavItem): NavItem | null => {
