@@ -100,40 +100,40 @@ type Member = {
 const alerts = [
   {
     id: 'alert-1',
-    title: 'API instavel',
-    detail: 'Picos de erro no servico de pedidos',
+    title: 'API instável',
+    detail: 'Picos de erro no serviço de pedidos',
     level: 'alto',
-    time: 'ha 10 min'
+    time: 'há 10 min'
   },
   {
     id: 'alert-2',
-    title: 'Fila de emails',
+    title: 'Fila de e-mails',
     detail: 'Processamento acima do esperado',
-    level: 'medio',
-    time: 'ha 45 min'
+    level: 'médio',
+    time: 'há 45 min'
   },
   {
     id: 'alert-3',
     title: 'Deploy pendente',
-    detail: 'Aguardando aprovacao do time',
+    detail: 'Aguardando aprovação do time',
     level: 'baixo',
-    time: 'ha 2 horas'
+    time: 'há 2 horas'
   }
 ];
 
 const statusOptions = [
   'Todos',
   'Em andamento',
-  'Revisao',
+  'Revisão',
   'Planejamento',
-  'Execucao',
-  'Validacao'
+  'Execução',
+  'Validação'
 ];
 
 const projectStatusOptions = statusOptions.filter(
   (status) => status !== 'Todos'
 );
-const healthOptions = ['Estavel', 'Atencao', 'Ok'];
+const healthOptions = ['Estável', 'Atenção', 'Ok'];
 const areaOptions = [
   'Automação',
   'Elétrica',
@@ -142,8 +142,8 @@ const areaOptions = [
   'Marketing',
   'Executivo'
 ];
-const tiposAutomacao = ['Domotica', 'Industrial'];
-const tiposEletrica = ['Projeto Eletrico', 'Solar'];
+const tiposAutomacao = ['Domótica', 'Industrial'];
+const tiposEletrica = ['Projeto Elétrico', 'Solar'];
 const defaultMemberStatus = 'online';
 const roleOptions = [
   'Consultor',
@@ -535,7 +535,7 @@ export default function AcompanhamentoPage() {
     }
 
     if (!newProject.managerId) {
-      toast.error('Selecione um responsavel.');
+      toast.error('Selecione um responsável.');
       return;
     }
 
@@ -548,7 +548,7 @@ export default function AcompanhamentoPage() {
       (member) => member.id === newProject.managerId
     );
     if (!selectedManager) {
-      toast.error('Selecione um responsavel valido.');
+      toast.error('Selecione um responsável válido.');
       return;
     }
     const managerName = selectedManager.name;
@@ -601,9 +601,9 @@ export default function AcompanhamentoPage() {
     } catch (error) {
       console.error('Falha ao salvar projeto:', error);
       if (error instanceof FirebaseError) {
-        toast.error(`Nao foi possivel salvar o projeto: ${error.code}`);
+        toast.error(`Não foi possível salvar o projeto: ${error.code}`);
       } else {
-        toast.error('Nao foi possivel salvar o projeto.');
+        toast.error('Não foi possível salvar o projeto.');
       }
     } finally {
       setIsSaving(false);
@@ -623,7 +623,7 @@ export default function AcompanhamentoPage() {
       setProjectToDelete(null);
     } catch (error) {
       console.error('Falha ao remover projeto:', error);
-      toast.error('Nao foi possivel remover o projeto.');
+      toast.error('Não foi possível remover o projeto.');
     } finally {
       setIsDeletingProject(false);
     }
@@ -636,8 +636,8 @@ export default function AcompanhamentoPage() {
 
   const areaFilterControl = (
     <Select value={areaFilter} onValueChange={setAreaFilter}>
-      <SelectTrigger className='h-8 w-40' aria-label='Filtrar area'>
-        <SelectValue placeholder='Area' />
+      <SelectTrigger className='h-8 w-40' aria-label='Filtrar área'>
+        <SelectValue placeholder='Área' />
       </SelectTrigger>
       <SelectContent align='end'>
         <SelectItem value='Geral'>Geral</SelectItem>
@@ -807,7 +807,7 @@ export default function AcompanhamentoPage() {
               Nenhum membro no setor selecionado
             </div>
             <div className='text-muted-foreground text-xs'>
-              Selecione outro setor para ver a ocupacao.
+              Selecione outro setor para ver a ocupação.
             </div>
           </CardContent>
         </Card>
@@ -815,7 +815,7 @@ export default function AcompanhamentoPage() {
         <PieGraph
           title='Membros ocupados'
           description='Percentual de membros ocupados'
-          shortDescription='Ocupacao da equipe'
+          shortDescription='Ocupação da equipe'
           data={occupancyChartData}
           config={{
             ocupados: {
@@ -839,7 +839,7 @@ export default function AcompanhamentoPage() {
     <Card className='h-full lg:h-105 flex flex-col'>
       <CardHeader>
         <CardTitle>Membros da equipe</CardTitle>
-        <CardDescription>Ultima atividade registrada</CardDescription>
+        <CardDescription>Última atividade registrada</CardDescription>
       </CardHeader>
       <CardContent className='flex-1 min-h-0 flex flex-col'>
         <ScrollArea className='flex-1 min-h-0 pr-3 -mr-3'>
@@ -888,7 +888,7 @@ export default function AcompanhamentoPage() {
     <Card className='h-full lg:h-105 flex flex-col'>
       <CardHeader>
         <CardTitle>Alertas recentes</CardTitle>
-        <CardDescription>Eventos que exigem atencao</CardDescription>
+        <CardDescription>Eventos que exigem atenção</CardDescription>
       </CardHeader>
       <CardContent className='flex-1 overflow-auto'>
         <div className='space-y-3'>
@@ -972,7 +972,7 @@ export default function AcompanhamentoPage() {
       });
       setIsMemberDialogOpen(false);
     } catch (error) {
-      toast.error('Nao foi possivel salvar o membro.');
+      toast.error('Não foi possível salvar o membro.');
     } finally {
       setIsSavingMember(false);
     }
@@ -981,7 +981,7 @@ export default function AcompanhamentoPage() {
   return (
     <PageContainer
       pageTitle='Acompanhamento'
-      pageDescription='Visao geral das frentes em andamento'
+      pageDescription='Visão geral das frentes em andamento'
       pageHeaderAction={areaFilterControl}
       hideHeaderOnMobile
       scrollable={false}
@@ -992,7 +992,7 @@ export default function AcompanhamentoPage() {
           <Tabs defaultValue='projects' className='w-full flex flex-col flex-1 min-h-0'>
             <TabsList className='grid w-full grid-cols-4 h-auto'>
               <TabsTrigger value='projects' className='text-xs py-2'>Projetos</TabsTrigger>
-              <TabsTrigger value='occupancy' className='text-xs py-2'>Ocupacao</TabsTrigger>
+              <TabsTrigger value='occupancy' className='text-xs py-2'>Ocupação</TabsTrigger>
               <TabsTrigger value='members' className='text-xs py-2'>Membros</TabsTrigger>
               <TabsTrigger value='alerts' className='text-xs py-2'>Alertas</TabsTrigger>
             </TabsList>
@@ -1034,8 +1034,8 @@ export default function AcompanhamentoPage() {
             </DialogTitle>
             <DialogDescription>
               {editingProjectId
-                ? 'Atualize as informacoes principais do projeto.'
-                : 'Adicione as informacoes principais do projeto.'}
+                ? 'Atualize as informações principais do projeto.'
+                : 'Adicione as informações principais do projeto.'}
             </DialogDescription>
           </DialogHeader>
           <form
@@ -1096,12 +1096,12 @@ export default function AcompanhamentoPage() {
                     }));
                   }}
                 >
-                  <SelectTrigger aria-label='Responsavel'>
+                  <SelectTrigger aria-label='Responsável'>
                     <SelectValue
                       placeholder={
                         leadershipMembers.length === 0
                           ? 'Sem usuarios'
-                          : 'Responsavel'
+                          : 'Responsável'
                       }
                     />
                   </SelectTrigger>
@@ -1227,7 +1227,7 @@ export default function AcompanhamentoPage() {
                     >
                       {startDate
                         ? format(startDate, 'dd/MM/yyyy')
-                        : 'Inicio do projeto'}
+                        : 'Início do projeto'}
                       <CalendarIcon className='ml-2 h-4 w-4 opacity-50' />
                     </Button>
                   </PopoverTrigger>
@@ -1247,7 +1247,7 @@ export default function AcompanhamentoPage() {
                   </PopoverContent>
                 </Popover>
                 <Input
-                  placeholder='Proximo marco'
+                  placeholder='Próximo marco'
                   value={newProject.next}
                   disabled={isSaving}
                   onChange={(event) =>
@@ -1300,7 +1300,7 @@ export default function AcompanhamentoPage() {
           <DialogHeader>
             <DialogTitle>Excluir projeto</DialogTitle>
             <DialogDescription>
-              Esta acao nao pode ser desfeita. Deseja excluir{' '}
+              Esta ação não pode ser desfeita. Deseja excluir{' '}
               <span className='font-medium'>
                 {projectToDelete?.name || 'este projeto'}
               </span>

@@ -5,7 +5,7 @@
     "client": "ACME Industria",
     "status": "Em andamento",
     "start": "08/01/2026",
-    "next": "Revisao de escopo",
+    "next": "Revisão de escopo",
     "value": "R$ 180.000",
     "manager": "Mariana Ribeiro"
   },
@@ -25,17 +25,17 @@
       "issuedAt": "13/01/2026",
       "dueAt": "24/01/2026",
       "owner": "Renata Alves",
-      "priority": "Media",
-      "description": "Mapear fluxo e principais telas da solucao."
+      "priority": "Média",
+      "description": "Mapear fluxo e principais telas da solução."
     },
     {
       "id": "api-spec",
-      "name": "Especificacao da API",
+      "name": "Especificação da API",
       "issuedAt": "14/01/2026",
       "dueAt": "28/01/2026",
       "owner": "Bruno Lima",
       "priority": "Alta",
-      "description": "Definir contratos, payloads e regras de negocio."
+      "description": "Definir contratos, payloads e regras de negócio."
     },
     {
       "id": "qa-plan",
@@ -44,7 +44,7 @@
       "dueAt": "30/01/2026",
       "owner": "Marina Silva",
       "priority": "Baixa",
-      "description": "Criar cobertura minima para cada fluxo critico."
+      "description": "Criar cobertura mínima para cada fluxo crítico."
     }
   ],
   "updates": [

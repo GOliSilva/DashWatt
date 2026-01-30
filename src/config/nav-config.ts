@@ -97,14 +97,14 @@ export const navItems: NavItem[] = [
     items: []
   },
   {
-    title: 'Estatisticas',
+    title: 'Estatísticas',
     url: '/dashboard/estatisticas',
     icon: 'chart',
     isActive: false,
     items: []
   },
   {
-    title: 'Precificacao',
+    title: 'Precificação',
     url: '/dashboard/precificacao',
     icon: 'page',
     isActive: false,

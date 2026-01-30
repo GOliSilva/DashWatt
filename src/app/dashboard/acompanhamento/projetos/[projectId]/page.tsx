@@ -62,11 +62,11 @@ import { toast } from 'sonner';
 
 const priorities: Record<string, string> = {
   Alta: 'bg-red-500/10 text-red-700',
-  Media: 'bg-amber-500/10 text-amber-700',
+  Média: 'bg-amber-500/10 text-amber-700',
   Baixa: 'bg-emerald-500/10 text-emerald-700'
 };
-const priorityOptions = ['Alta', 'Media', 'Baixa'];
-const statusOptions = ['Planejado', 'Em andamento', 'Bloqueado', 'Concluido'];
+const priorityOptions = ['Alta', 'Média', 'Baixa'];
+const statusOptions = ['Planejado', 'Em andamento', 'Bloqueado', 'Concluído'];
 
 type Activity = {
   id: string;
@@ -243,7 +243,7 @@ export default function ProjetoPage() {
         );
       } catch (error) {
         console.error('Falha ao carregar membros:', error);
-        toast.error('Nao foi possivel carregar membros.');
+        toast.error('Não foi possível carregar membros.');
       } finally {
         if (isActive) {
           setIsMembersLoading(false);
@@ -320,7 +320,7 @@ export default function ProjetoPage() {
         }
       } catch (error) {
         console.error('Falha ao carregar atividades:', error);
-        toast.error('Nao foi possivel carregar atividades.');
+        toast.error('Não foi possível carregar atividades.');
       }
     };
 
@@ -473,7 +473,7 @@ export default function ProjetoPage() {
       return;
     }
     if (!newActivity.owner.trim()) {
-      toast.error('Informe o responsavel.');
+      toast.error('Informe o responsável.');
       return;
     }
     if (!projectId) {
@@ -545,7 +545,7 @@ export default function ProjetoPage() {
       toast.success('Atividade adicionada.');
     } catch (error) {
       console.error('Falha ao salvar atividade:', error);
-      toast.error('Nao foi possivel salvar a atividade.');
+      toast.error('Não foi possível salvar a atividade.');
     } finally {
       setIsSavingActivity(false);
     }
@@ -590,7 +590,7 @@ export default function ProjetoPage() {
       return;
     }
     if (!editActivity.owner.trim()) {
-      toast.error('Informe o responsavel.');
+      toast.error('Informe o responsável.');
       return;
     }
     if (!projectId) {
@@ -627,7 +627,7 @@ export default function ProjetoPage() {
       toast.success('Atividade atualizada.');
     } catch (error) {
       console.error('Falha ao atualizar atividade:', error);
-      toast.error('Nao foi possivel atualizar a atividade.');
+      toast.error('Não foi possível atualizar a atividade.');
     } finally {
       setIsSavingEdit(false);
     }
@@ -672,10 +672,10 @@ export default function ProjetoPage() {
                             {activity.name}
                           </span>
                           <span className='text-muted-foreground text-xs'>
-                            Emissao {activity.issuedAt} - Prazo {activity.dueAt}
+                            Emissão {activity.issuedAt} - Prazo {activity.dueAt}
                           </span>
                           <span className='text-muted-foreground text-xs'>
-                            Responsavel {activity.owner}
+                            Responsável {activity.owner}
                           </span>
                         </div>
                         <Badge className={priorities[activity.priority]}>
@@ -715,7 +715,7 @@ export default function ProjetoPage() {
                 </div>
                 <div className='space-y-1'>
                   <label className='text-sm font-medium' htmlFor='activityDesc'>
-                    Descricao
+                    Descrição
                   </label>
                   <Textarea
                     id='activityDesc'
@@ -751,7 +751,7 @@ export default function ProjetoPage() {
                   </div>
                   <div className='space-y-1'>
                     <label className='text-sm font-medium'>
-                      Responsavel
+                      Responsável
                     </label>
                     <div className="relative">
                       <Combobox
@@ -885,7 +885,7 @@ export default function ProjetoPage() {
               </CardTitle>
               <CardDescription>
                 {selectedActivity?.owner
-                  ? `Responsavel: ${selectedActivity.owner}`
+                  ? `Responsável: ${selectedActivity.owner}`
                   : 'Selecione uma atividade para ver os detalhes.'}
               </CardDescription>
               <CardAction>
@@ -906,7 +906,7 @@ export default function ProjetoPage() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align='end'>
                       <DropdownMenuLabel>
-                        Informacoes do projeto
+                        Informações do projeto
                       </DropdownMenuLabel>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem>
@@ -919,10 +919,10 @@ export default function ProjetoPage() {
                         Status: {projectInfo.status || '--'}
                       </DropdownMenuItem>
                       <DropdownMenuItem>
-                        Inicio: {projectInfo.start || '--'}
+                        Início: {projectInfo.start || '--'}
                       </DropdownMenuItem>
                       <DropdownMenuItem>
-                        Proximo: {projectInfo.next || '--'}
+                        Próximo: {projectInfo.next || '--'}
                       </DropdownMenuItem>
                       <DropdownMenuItem>
                         Valor: {formatProjectValue(projectInfo.value)}
@@ -960,18 +960,18 @@ export default function ProjetoPage() {
                 </div>
               </div>
               <div className='rounded-md border p-3'>
-                <div className='text-muted-foreground text-xs'>Descricao</div>
+                <div className='text-muted-foreground text-xs'>Descrição</div>
                 <p className='mt-1'>
                   {selectedActivity?.description ?? '---'}
                 </p>
               </div>
               <div className='rounded-md border p-3'>
-                <div className='text-muted-foreground text-xs'>Atualizacoes</div>
+                <div className='text-muted-foreground text-xs'>Atualizações</div>
                 <ScrollArea className='mt-2 h-40 pr-2'>
                   <div className='space-y-2'>
                     {activityUpdates.length === 0 ? (
                       <div className='text-muted-foreground text-xs'>
-                        Sem atualizacoes.
+                        Sem atualizações.
                       </div>
                     ) : (
                       activityUpdates.map((update) => (
@@ -1005,7 +1005,7 @@ export default function ProjetoPage() {
           <DialogHeader>
             <DialogTitle>Editar atividade</DialogTitle>
             <DialogDescription>
-              Atualize as informacoes da atividade selecionada.
+              Atualize as informações da atividade selecionada.
             </DialogDescription>
           </DialogHeader>
           <div className='grid gap-3'>
@@ -1021,7 +1021,7 @@ export default function ProjetoPage() {
               }
             />
             <Textarea
-              placeholder='Descricao'
+              placeholder='Descrição'
               className='min-h-20'
               value={editActivity.description}
               disabled={isSavingEdit}
@@ -1077,7 +1077,7 @@ export default function ProjetoPage() {
                           }));
                         }
                       }}
-                      placeholder='Responsavel'
+                      placeholder='Responsável'
                     />
                   </div>
                   <ComboboxOptions
@@ -1177,7 +1177,7 @@ export default function ProjetoPage() {
               onClick={handleUpdateActivity}
               disabled={isSavingEdit}
             >
-              {isSavingEdit ? 'Salvando...' : 'Salvar alteracoes'}
+              {isSavingEdit ? 'Salvando...' : 'Salvar alterações'}
             </Button>
           </DialogFooter>
         </DialogContent>

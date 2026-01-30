@@ -108,10 +108,10 @@ type MemberInfo = {
 
 const priorityStyles: Record<string, string> = {
   Alta: 'bg-red-500/10 text-red-700',
-  Media: 'bg-amber-500/10 text-amber-700',
+  Média: 'bg-amber-500/10 text-amber-700',
   Baixa: 'bg-emerald-500/10 text-emerald-700'
 };
-const priorityOptions = ['Alta', 'Media', 'Baixa'];
+const priorityOptions = ['Alta', 'Média', 'Baixa'];
 
 const statusStyles: Record<string, string> = {
   'Em andamento': 'bg-primary/10 text-primary',
@@ -119,11 +119,11 @@ const statusStyles: Record<string, string> = {
   Bloqueado: 'bg-red-500/10 text-red-700',
   Concluido: 'bg-emerald-500/10 text-emerald-700'
 };
-const statusOptions = ['Planejado', 'Em andamento', 'Bloqueado', 'Concluido'];
+const statusOptions = ['Planejado', 'Em andamento', 'Bloqueado', 'Concluído'];
 
 const priorityRank: Record<string, number> = {
   Alta: 3,
-  Media: 2,
+  Média: 2,
   Baixa: 1
 };
 
@@ -131,7 +131,7 @@ const alerts: MemberAlert[] = [];
 
 const alertLevelStyles: Record<string, string> = {
   alto: 'bg-red-500/10 text-red-700',
-  medio: 'bg-amber-500/10 text-amber-700',
+  médio: 'bg-amber-500/10 text-amber-700',
   baixo: 'bg-emerald-500/10 text-emerald-700'
 };
 
@@ -446,7 +446,7 @@ export default function IndividualPage() {
       }
       if (priority === 'Alta') {
         high.push(parsed);
-      } else if (priority === 'Media') {
+      } else if (priority === 'Média') {
         medium.push(parsed);
       } else {
         low.push(parsed);
@@ -578,7 +578,7 @@ export default function IndividualPage() {
         const usedCache = loadFromCache();
         console.error('Falha ao carregar membro:', error);
         if (!usedCache) {
-          toast.error('Nao foi possivel carregar seus dados.');
+          toast.error('Não foi possível carregar seus dados.');
         } else {
           toast.message('Exibindo dados offline.');
         }
@@ -659,7 +659,7 @@ export default function IndividualPage() {
               title: activity.name ?? 'Tarefa',
               due: activity.dueAt ?? '',
               status: activity.status ?? 'Planejado',
-              priority: activity.priority ?? 'Media',
+              priority: activity.priority ?? 'Média',
               owner: activity.owner,
               ownerId: activity.ownerId,
               description: activity.description,
@@ -674,7 +674,7 @@ export default function IndividualPage() {
         const usedCache = loadTasksFromCache();
         console.error('Falha ao carregar tarefas:', error);
         if (!usedCache) {
-          toast.error('Nao foi possivel carregar tarefas.');
+          toast.error('Não foi possível carregar tarefas.');
         } else {
           toast.message('Exibindo tarefas offline.');
         }
@@ -728,12 +728,12 @@ export default function IndividualPage() {
   const handleUpdateTask = async () => {
     if (!activeTask?.projectId || !activeTask.activityId) {
       if (activeTask?.source !== 'agenda') {
-        toast.error('Atividade nao encontrada.');
+        toast.error('Atividade não encontrada.');
         return;
       }
     }
     if (!firebaseDb) {
-      toast.error('Firebase nao configurado.');
+      toast.error('Firebase não configurado.');
       return;
     }
     const db = firebaseDb;
@@ -741,13 +741,13 @@ export default function IndividualPage() {
     try {
       if (activeTask?.source === 'agenda' || !activeTask.projectId) {
         if (!memberId) {
-          toast.error('Membro nao encontrado.');
+          toast.error('Membro não encontrado.');
           return;
         }
         const memberRef = doc(db, 'members', memberId);
         const memberSnapshot = await getDoc(memberRef);
         if (!memberSnapshot.exists()) {
-          toast.error('Membro nao encontrado.');
+          toast.error('Membro não encontrado.');
           return;
         }
 
@@ -820,14 +820,14 @@ export default function IndividualPage() {
         );
         setUpdateNote('');
         storeMemberCache(memberId, buildMemberCache({ agendaTasks: nextLocalAgenda }));
-        toast.success('Atualizacao registrada.');
+        toast.success('Atualização registrada.');
         return;
       }
 
       const projectRef = doc(db, 'projects', activeTask.projectId);
       const snapshot = await getDoc(projectRef);
       if (!snapshot.exists()) {
-        toast.error('Projeto nao encontrado.');
+        toast.error('Projeto não encontrado.');
         return;
       }
 
@@ -899,7 +899,7 @@ export default function IndividualPage() {
       toast.success('Atividade atualizada.');
     } catch (error) {
       console.error('Falha ao atualizar atividade:', error);
-      toast.error('Nao foi possivel atualizar a atividade.');
+      toast.error('Não foi possível atualizar a atividade.');
     } finally {
       setIsSavingEdit(false);
     }
@@ -928,7 +928,7 @@ export default function IndividualPage() {
       return;
     }
     if (!firebaseDb || !memberId) {
-      toast.error('Membro nao encontrado.');
+      toast.error('Membro não encontrado.');
       return;
     }
 
@@ -938,7 +938,7 @@ export default function IndividualPage() {
       const memberRef = doc(db, 'members', memberId);
       const memberSnapshot = await getDoc(memberRef);
       if (!memberSnapshot.exists()) {
-        toast.error('Membro nao encontrado.');
+        toast.error('Membro não encontrado.');
         return;
       }
 
@@ -979,7 +979,7 @@ export default function IndividualPage() {
       toast.success('Agenda atualizada.');
     } catch (error) {
       console.error('Falha ao atualizar agenda:', error);
-      toast.error('Nao foi possivel atualizar a agenda.');
+      toast.error('Não foi possível atualizar a agenda.');
     } finally {
       setIsSavingAgendaEdit(false);
     }
@@ -995,7 +995,7 @@ export default function IndividualPage() {
       return;
     }
     if (!firebaseDb || !memberId) {
-      toast.error('Membro nao encontrado.');
+      toast.error('Membro não encontrado.');
       return;
     }
     setDeletingAgendaId(taskToDelete.id);
@@ -1004,7 +1004,7 @@ export default function IndividualPage() {
       const memberRef = doc(db, 'members', memberId);
       const memberSnapshot = await getDoc(memberRef);
       if (!memberSnapshot.exists()) {
-        toast.error('Membro nao encontrado.');
+        toast.error('Membro não encontrado.');
         return;
       }
 
@@ -1033,7 +1033,7 @@ export default function IndividualPage() {
       setTaskToDelete(null);
     } catch (error) {
       console.error('Falha ao remover tarefa da agenda:', error);
-      toast.error('Nao foi possivel remover a tarefa.');
+      toast.error('Não foi possível remover a tarefa.');
     } finally {
       setDeletingAgendaId(null);
     }
@@ -1091,11 +1091,11 @@ export default function IndividualPage() {
       return;
     }
     if (!firebaseDb) {
-      toast.error('Firebase nao configurado.');
+      toast.error('Firebase não configurado.');
       return;
     }
     if (!memberId) {
-      toast.error('Membro nao encontrado.');
+      toast.error('Membro não encontrado.');
       return;
     }
 
@@ -1105,7 +1105,7 @@ export default function IndividualPage() {
     try {
       const snapshot = await getDoc(memberRef);
       if (!snapshot.exists()) {
-        toast.error('Membro nao encontrado.');
+        toast.error('Membro não encontrado.');
         return;
       }
 
@@ -1148,7 +1148,7 @@ export default function IndividualPage() {
       toast.success('Agenda adicionada.');
     } catch (error) {
       console.error('Falha ao salvar agenda:', error);
-      toast.error('Nao foi possivel salvar a agenda.');
+      toast.error('Não foi possível salvar a agenda.');
     } finally {
       setIsSavingAgenda(false);
     }
@@ -1172,7 +1172,7 @@ export default function IndividualPage() {
   return (
     <PageContainer
       pageTitle={memberInfo.name || 'Individual'}
-      pageDescription='Tarefas, calendario e alertas'
+      pageDescription='Tarefas, calendário e alertas'
       hideHeaderOnMobile
     >
       <div className='flex flex-1 flex-col space-y-3 md:space-y-4'>
@@ -1424,7 +1424,7 @@ export default function IndividualPage() {
                         </label>
                         <Input
                           id='agendaTitle'
-                          placeholder='Ex: Visita tecnica'
+                          placeholder='Ex: Visita técnica'
                           value={agendaForm.title}
                           disabled={isSavingAgenda}
                           onChange={(event) =>
@@ -1747,8 +1747,8 @@ export default function IndividualPage() {
 
           <Card className='h-105'>
             <CardHeader>
-              <CardTitle>Calendario</CardTitle>
-              <CardDescription>Dias clicaveis para agenda</CardDescription>
+              <CardTitle>Calendário</CardTitle>
+              <CardDescription>Dias clicáveis para agenda</CardDescription>
             </CardHeader>
             <CardContent>
               <div className='grid gap-4 md:grid-cols-[260px_minmax(0,1fr)]'>
@@ -1873,7 +1873,7 @@ export default function IndividualPage() {
                         </label>
                         <Input
                           id='agendaTitle'
-                          placeholder='Ex: Visita tecnica'
+                          placeholder='Ex: Visita técnica'
                           value={agendaForm.title}
                           disabled={isSavingAgenda}
                           onChange={(event) =>
@@ -1887,7 +1887,7 @@ export default function IndividualPage() {
                     </div>
                     <div className='space-y-1'>
                       <label className='text-sm font-medium' htmlFor='agendaNotes'>
-                        Descricao
+                        Descrição
                       </label>
                       <Textarea
                         id='agendaNotes'
@@ -2212,7 +2212,7 @@ export default function IndividualPage() {
           <DialogHeader>
             <DialogTitle>Editar tarefa da agenda</DialogTitle>
             <DialogDescription>
-              Atualize as informacoes e salve as mudancas.
+              Atualize as informações e salve as mudanças.
             </DialogDescription>
           </DialogHeader>
           <div className='space-y-4'>
@@ -2240,7 +2240,7 @@ export default function IndividualPage() {
                 </label>
                 <Input
                   id='editAgendaTitle'
-                  placeholder='Ex: Visita tecnica'
+                  placeholder='Ex: Visita técnica'
                   value={agendaEditForm.title}
                   disabled={isSavingAgendaEdit}
                   onChange={(event) =>
@@ -2254,7 +2254,7 @@ export default function IndividualPage() {
             </div>
             <div className='space-y-1'>
               <label className='text-sm font-medium' htmlFor='editAgendaNotes'>
-                Descricao
+                Descrição
               </label>
               <Textarea
                 id='editAgendaNotes'
@@ -2345,7 +2345,7 @@ export default function IndividualPage() {
           <DialogHeader>
             <DialogTitle>Excluir tarefa</DialogTitle>
             <DialogDescription>
-              Esta acao nao pode ser desfeita. Deseja excluir{' '}
+              Esta ação não pode ser desfeita. Deseja excluir{' '}
               <span className='font-medium'>
                 {taskToDelete?.title || 'esta tarefa'}
               </span>

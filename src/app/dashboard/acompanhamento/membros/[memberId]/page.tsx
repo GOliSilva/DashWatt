@@ -134,31 +134,31 @@ const priorityRank: Record<string, number> = {
 const alerts: MemberAlert[] = [
   {
     id: 'alert-1',
-    title: 'Entrega proxima',
-    detail: 'Revisar prototipos ate sexta-feira',
+    title: 'Entrega próxima',
+    detail: 'Revisar protótipos até sexta-feira',
     level: 'alto',
-    time: 'ha 2 horas'
+    time: 'há 2 horas'
   },
   {
     id: 'alert-2',
-    title: 'Pendencia de aprovacao',
+    title: 'Pendência de aprovação',
     detail: 'Feedback do cliente pendente',
-    level: 'medio',
-    time: 'ha 5 horas'
+    level: 'médio',
+    time: 'há 5 horas'
   },
   {
     id: 'alert-3',
-    title: 'Reuniao marcada',
-    detail: 'Daily com engenharia amanha',
+    title: 'Reunião marcada',
+    detail: 'Daily com engenharia amanhã',
     level: 'baixo',
-    time: 'ha 1 dia'
+    time: 'há 1 dia'
   },
   {
     id: 'alert-4',
     title: 'Ajuste urgente',
     detail: 'Atualizar layout da home',
     level: 'alto',
-    time: 'ha 30 min'
+    time: 'há 30 min'
   }
 ];
 
@@ -358,7 +358,7 @@ export default function MembroPage() {
         }
       } catch (error) {
         console.error('Falha ao carregar membro:', error);
-        toast.error('Nao foi possivel carregar o membro.');
+        toast.error('Não foi possível carregar o membro.');
       }
     };
 
@@ -401,7 +401,7 @@ export default function MembroPage() {
         );
       } catch (error) {
         console.error('Falha ao carregar membros:', error);
-        toast.error('Nao foi possivel carregar membros.');
+        toast.error('Não foi possível carregar membros.');
       } finally {
         if (isActive) {
           setIsMembersLoading(false);
@@ -478,7 +478,7 @@ export default function MembroPage() {
         setProjectTasks(tasksFromDb);
       } catch (error) {
         console.error('Falha ao carregar tarefas:', error);
-        toast.error('Nao foi possivel carregar tarefas.');
+        toast.error('Não foi possível carregar tarefas.');
       }
     };
 
@@ -521,7 +521,7 @@ export default function MembroPage() {
       return;
     }
     if (!editTask.owner.trim()) {
-      toast.error('Informe o responsavel.');
+      toast.error('Informe o responsável.');
       return;
     }
 
@@ -537,20 +537,20 @@ export default function MembroPage() {
       const data = snapshot.data() as { Activities?: MemberTask[] };
       const nextActivities = Array.isArray(data.Activities)
         ? data.Activities.map((activity) => {
-            if (activity.id !== activeTask.activityId) {
-              return activity;
-            }
-            return {
-              ...activity,
-              name: editTask.name.trim(),
-              description: editTask.description.trim(),
-              dueAt: formatDateLabel(editTask.dueDate),
-              owner: editTask.owner.trim(),
-              ownerId: editTask.ownerId || undefined,
-              status: editTask.status,
-              priority: editTask.priority
-            };
-          })
+          if (activity.id !== activeTask.activityId) {
+            return activity;
+          }
+          return {
+            ...activity,
+            name: editTask.name.trim(),
+            description: editTask.description.trim(),
+            dueAt: formatDateLabel(editTask.dueDate),
+            owner: editTask.owner.trim(),
+            ownerId: editTask.ownerId || undefined,
+            status: editTask.status,
+            priority: editTask.priority
+          };
+        })
         : [];
 
       await updateDoc(projectRef, {
@@ -562,22 +562,7 @@ export default function MembroPage() {
         current.map((task) =>
           task.id === activeTask.id
             ? {
-                ...task,
-                title: editTask.name.trim(),
-                description: editTask.description.trim(),
-                due: formatDateLabel(editTask.dueDate),
-                owner: editTask.owner.trim(),
-                ownerId: editTask.ownerId || undefined,
-                status: editTask.status,
-                priority: editTask.priority
-              }
-            : task
-        )
-      );
-      setActiveTask((current) =>
-        current
-          ? {
-              ...current,
+              ...task,
               title: editTask.name.trim(),
               description: editTask.description.trim(),
               due: formatDateLabel(editTask.dueDate),
@@ -586,12 +571,27 @@ export default function MembroPage() {
               status: editTask.status,
               priority: editTask.priority
             }
+            : task
+        )
+      );
+      setActiveTask((current) =>
+        current
+          ? {
+            ...current,
+            title: editTask.name.trim(),
+            description: editTask.description.trim(),
+            due: formatDateLabel(editTask.dueDate),
+            owner: editTask.owner.trim(),
+            ownerId: editTask.ownerId || undefined,
+            status: editTask.status,
+            priority: editTask.priority
+          }
           : current
       );
       toast.success('Atividade atualizada.');
     } catch (error) {
       console.error('Falha ao atualizar atividade:', error);
-      toast.error('Nao foi possivel atualizar a atividade.');
+      toast.error('Não foi possível atualizar a atividade.');
     } finally {
       setIsSavingEdit(false);
     }
@@ -642,10 +642,10 @@ export default function MembroPage() {
         role: memberEditForm.role.trim()
       });
       setIsMemberEditOpen(false);
-      toast.success('Informacoes atualizadas.');
+      toast.success('Informações atualizadas.');
     } catch (error) {
       console.error('Falha ao atualizar membro:', error);
-      toast.error('Nao foi possivel atualizar o membro.');
+      toast.error('Não foi possível atualizar o membro.');
     } finally {
       setIsSavingMemberEdit(false);
     }
@@ -654,7 +654,7 @@ export default function MembroPage() {
   return (
     <PageContainer
       pageTitle='Membro'
-      pageDescription='Tarefas, calendario e alertas'
+      pageDescription='Tarefas, calendário e alertas'
     >
       <div className='flex flex-1 flex-col space-y-4'>
         <div className='*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 *:data-[slot=card]:bg-linear-to-t *:data-[slot=card]:shadow-xs lg:grid-cols-2'>
@@ -706,8 +706,8 @@ export default function MembroPage() {
 
           <Card className='h-full'>
             <CardHeader>
-              <CardTitle>Calendario</CardTitle>
-              <CardDescription>Dias clicaveis para agenda</CardDescription>
+              <CardTitle>Calendário</CardTitle>
+              <CardDescription>Dias clicáveis para agenda</CardDescription>
             </CardHeader>
             <CardContent>
               <div className='grid gap-4 md:grid-cols-[260px_minmax(0,1fr)]'>
@@ -777,7 +777,7 @@ export default function MembroPage() {
           <Card className='h-full'>
             <CardHeader className='flex flex-row items-start justify-between'>
               <div>
-                <CardTitle>Informacoes</CardTitle>
+                <CardTitle>Informações</CardTitle>
                 <CardDescription>Dados do membro</CardDescription>
               </div>
               <Button
@@ -786,7 +786,7 @@ export default function MembroPage() {
                 variant='ghost'
                 className='h-9 w-9 cursor-pointer self-center rounded-md border hover:bg-white/10 [&_svg]:!h-[1em] [&_svg]:!w-[1em]'
                 onClick={openMemberEditInfo}
-                aria-label='Editar informacoes do membro'
+                aria-label='Editar informações do membro'
               >
                 <FontAwesomeIcon icon={faPenToSquare} size='lg' />
               </Button>
@@ -914,7 +914,7 @@ export default function MembroPage() {
                   <div>
                     <Input
                       ref={editOwnerInputRef}
-                      placeholder='Responsavel'
+                      placeholder='Responsável'
                       value={editTask.owner}
                       disabled={isSavingEdit}
                       onFocus={() => setIsEditOwnerOpen(true)}
