@@ -68,7 +68,7 @@ export default function PontoPage() {
     React.useEffect(() => {
         if (!isLoadingContext && currentMember) {
             const allowedRoles = ['Diretor', 'Presidente', 'Assessor'];
-            if (!allowedRoles.includes(currentMember.role)) {
+            if (!allowedRoles.includes(currentMember.role || '')) {
                 toast.error('Acesso não autorizado', {
                     description: 'Você não tem permissão para acessar esta página.'
                 });
