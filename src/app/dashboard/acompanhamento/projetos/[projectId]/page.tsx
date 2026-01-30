@@ -755,6 +755,7 @@ export default function ProjetoPage() {
                     </label>
                     <div className="relative">
                       <Combobox
+                        as="div"
                         value={newActivity.owner}
                         onChange={(value: any) => {
                           // value can be the object if selected from list, or string if typed (though strictly Combobox returns the value prop of Option)
@@ -1045,6 +1046,7 @@ export default function ProjetoPage() {
               />
               <div className='relative'>
                 <Combobox
+                  as="div"
                   value={editActivity.owner}
                   onChange={(value: string | null) => {
                     if (!value) return;
