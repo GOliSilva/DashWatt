@@ -25,12 +25,11 @@ import { toast } from 'sonner';
 import { firebaseDb } from '@/lib/firebase/client';
 
 const sectors = [
-  'Automação',
-  'Elétrica',
+  'Projetos',
   'Comercial',
-  'Institucional',
   'Marketing',
-  'Executivo'
+  'Executivo',
+  'Institucional'
 ];
 
 export default function OnboardingPage() {
@@ -79,7 +78,7 @@ export default function OnboardingPage() {
     try {
       // Criar documento do membro com ID igual ao UID do usuário
       const memberRef = doc(firebaseDb, 'members', user.uid);
-      
+
       await setDoc(memberRef, {
         name: formData.name.trim(),
         email: formData.email.toLowerCase().trim(),
@@ -97,7 +96,7 @@ export default function OnboardingPage() {
       });
 
       toast.success('Cadastro concluído com sucesso!');
-      
+
       // Redirecionar para a tela individual
       router.push('/dashboard/individual');
     } catch (error) {
@@ -125,7 +124,7 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className='flex min-h-screen items-center justify-center bg-background p-4'>
+    <div className='bg-background flex min-h-screen items-center justify-center p-4'>
       <Card className='w-full max-w-lg'>
         <CardHeader className='text-center'>
           <CardTitle className='text-2xl'>Complete seu cadastro</CardTitle>
@@ -159,7 +158,7 @@ export default function OnboardingPage() {
                 disabled
                 className='bg-muted'
               />
-              <p className='text-xs text-muted-foreground'>
+              <p className='text-muted-foreground text-xs'>
                 Email vinculado à sua conta
               </p>
             </div>
