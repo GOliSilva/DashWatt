@@ -63,14 +63,23 @@ import { faPenToSquare } from '@fortawesome/free-regular-svg-icons';
 import { faPhone, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { toast } from 'sonner';
 
+type LeadContact = {
+  name: string;
+  email: string;
+  phone: string;
+  role: string;
+};
+
 type LeadFormState = {
   responsibleId: string;
   responsibleName: string;
   leadName: string;
-  contact: string;
+  cnpj: string;
+  contacts: LeadContact[];
   date: string;
   location: string;
-  leadType: string;
+  interestedServices: string;
+  proposalLink: string;
   hasBeenContacted: boolean;
 };
 
@@ -79,10 +88,12 @@ type Lead = {
   responsibleId: string;
   responsibleName: string;
   leadName: string;
-  contact: string;
+  cnpj: string;
+  contacts: LeadContact[];
   date: string;
   location: string;
-  leadType: string;
+  interestedServices: string[];
+  proposalLink: string;
   hasBeenContacted?: boolean;
 };
 
@@ -90,10 +101,19 @@ const initialFormState: LeadFormState = {
   responsibleId: '',
   responsibleName: '',
   leadName: '',
-  contact: '',
+  cnpj: '',
+  contacts: [
+    {
+      name: '',
+      email: '',
+      phone: '',
+      role: ''
+    }
+  ],
   date: '',
   location: '',
-  leadType: '',
+  interestedServices: '',
+  proposalLink: '',
   hasBeenContacted: false
 };
 
@@ -115,6 +135,8 @@ export default function LeadsPage() {
   const [leads, setLeads] = React.useState<Lead[]>([]);
   const [isLoadingLeads, setIsLoadingLeads] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState('');
+  const [selectedLead, setSelectedLead] = React.useState<Lead | null>(null);
+  const formContacts = form.contacts ?? [];
 
   const sortedMembers = React.useMemo(() => {
     return [...(members ?? [])].sort((a, b) =>
@@ -177,9 +199,13 @@ export default function LeadsPage() {
       [
         lead.leadName,
         lead.responsibleName,
-        lead.contact,
+        lead.cnpj,
         lead.location,
-        lead.leadType
+        lead.proposalLink,
+        lead.interestedServices?.join(' '),
+        lead.contacts?.map((item) => item.name).join(' '),
+        lead.contacts?.map((item) => item.email).join(' '),
+        lead.contacts?.map((item) => item.phone).join(' ')
       ]
         .filter(Boolean)
         .some((value) => value.toLowerCase().includes(term))
@@ -248,19 +274,82 @@ export default function LeadsPage() {
       responsibleId: lead.responsibleId ?? '',
       responsibleName: lead.responsibleName ?? '',
       leadName: lead.leadName ?? '',
-      contact: lead.contact ?? '',
+      cnpj: lead.cnpj ?? '',
+      contacts:
+        lead.contacts?.length > 0
+          ? lead.contacts.map((contact) => ({
+              name: contact.name ?? '',
+              email: contact.email ?? '',
+              phone: contact.phone ?? '',
+              role: contact.role ?? ''
+            }))
+          : [
+              {
+                name: '',
+                email: '',
+                phone: '',
+                role: ''
+              }
+            ],
       date: formatLeadDateInput(lead.date),
       location: lead.location ?? '',
-      leadType: lead.leadType ?? '',
+      interestedServices: lead.interestedServices?.join(', ') ?? '',
+      proposalLink: lead.proposalLink ?? '',
       hasBeenContacted: lead.hasBeenContacted ?? false
     });
     setEditingLeadId(lead.id);
     setIsDialogOpen(true);
   };
 
+  const addContact = () => {
+    setForm((current) => ({
+      ...current,
+      contacts: [
+        ...(current.contacts ?? []),
+        { name: '', email: '', phone: '', role: '' }
+      ]
+    }));
+  };
+
+  const updateContact = (
+    index: number,
+    field: keyof LeadContact,
+    value: string
+  ) => {
+    setForm((current) => {
+      const next = [...(current.contacts ?? [])];
+      if (!next[index]) {
+        next[index] = { name: '', email: '', phone: '', role: '' };
+      }
+      next[index] = {
+        ...next[index],
+        [field]: value
+      };
+      return { ...current, contacts: next };
+    });
+  };
+
+  const removeContact = (index: number) => {
+    setForm((current) => {
+      const next = (current.contacts ?? []).filter(
+        (_, itemIndex) => itemIndex !== index
+      );
+      return {
+        ...current,
+        contacts: next.length
+          ? next
+          : [{ name: '', email: '', phone: '', role: '' }]
+      };
+    });
+  };
+
   const openDeleteDialog = (lead: Lead) => {
     setLeadToDelete(lead);
     setIsDeleteDialogOpen(true);
+  };
+
+  const openLeadDetails = (lead: Lead) => {
+    setSelectedLead(lead);
   };
 
   const handleDeleteLead = async () => {
@@ -280,6 +369,7 @@ export default function LeadsPage() {
       toast.success('Lead excluido.');
       setLeadToDelete(null);
       setIsDeleteDialogOpen(false);
+      setSelectedLead(null);
     } catch (error) {
       console.log(error);
       toast.error('Nao foi possivel excluir o lead.');
@@ -315,24 +405,40 @@ export default function LeadsPage() {
       return;
     }
 
+    const contacts = formContacts
+      .map((contact) => ({
+        name: contact.name.trim(),
+        email: contact.email.trim(),
+        phone: contact.phone.trim(),
+        role: contact.role.trim()
+      }))
+      .filter((contact) =>
+        [contact.name, contact.email, contact.phone, contact.role].some(Boolean)
+      );
+
+    const interestedServices = form.interestedServices
+      .split(',')
+      .map((service) => service.trim())
+      .filter(Boolean);
+
     const payload = {
       responsibleId: form.responsibleId.trim(),
       responsibleName: form.responsibleName.trim(),
       leadName: form.leadName.trim(),
-      contact: form.contact.trim(),
+      cnpj: form.cnpj.trim(),
+      contacts,
       date: form.date.trim(),
       location: form.location.trim(),
-      leadType: form.leadType.trim(),
+      interestedServices,
+      proposalLink: form.proposalLink.trim(),
       hasBeenContacted: form.hasBeenContacted
     };
 
     if (
       !payload.responsibleId ||
       !payload.leadName ||
-      !payload.contact ||
       !payload.date ||
-      !payload.location ||
-      !payload.leadType
+      !payload.location
     ) {
       toast.error('Preencha todos os campos obrigatorios.');
       return;
@@ -401,98 +507,231 @@ export default function LeadsPage() {
               Nenhum lead encontrado.
             </div>
           ) : (
-            <div className='rounded-md border'>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Lead</TableHead>
-                    <TableHead>Responsável</TableHead>
-                    <TableHead>Contato</TableHead>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Localizacão</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead className='text-right'>Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredLeads.map((lead) => (
-                    <TableRow key={lead.id}>
-                      <TableCell className='font-medium'>
-                        <div className='flex flex-col'>
-                          <span>{lead.leadName}</span>
-                          <span
-                            className={`text-xs ${
-                              lead.hasBeenContacted
-                                ? 'text-green-600'
-                                : 'text-red-600'
-                            }`}
-                          >
-                            {lead.hasBeenContacted
-                              ? 'Contatado'
-                              : 'Não contatado'}
+            <div className='grid gap-3 sm:grid-cols-2 lg:grid-cols-3'>
+              {filteredLeads.map((lead) => (
+                <button
+                  key={lead.id}
+                  type='button'
+                  onClick={() => openLeadDetails(lead)}
+                  className='hover:bg-muted/50 active:bg-muted flex flex-col gap-3 rounded-lg border p-4 text-left transition-colors'
+                >
+                  <div className='flex items-start justify-between gap-2'>
+                    <span className='text-sm leading-tight font-semibold'>
+                      {lead.leadName}
+                    </span>
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                        lead.hasBeenContacted
+                          ? 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400'
+                          : 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400'
+                      }`}
+                    >
+                      {lead.hasBeenContacted ? 'Contatado' : 'Pendente'}
+                    </span>
+                  </div>
+                  <div className='flex flex-col gap-0.5'>
+                    <span className='text-muted-foreground text-xs'>
+                      {lead.responsibleName || '-'}
+                    </span>
+                    <div className='flex items-center gap-2'>
+                      <span className='text-muted-foreground text-xs'>
+                        {formatLeadDate(lead.date)}
+                      </span>
+                      {lead.location ? (
+                        <>
+                          <span className='text-muted-foreground text-xs'>
+                            •
                           </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>{lead.responsibleName || '-'}</TableCell>
-                      <TableCell>{lead.contact}</TableCell>
-                      <TableCell>{formatLeadDate(lead.date)}</TableCell>
-                      <TableCell>{lead.location}</TableCell>
-                      <TableCell>{lead.leadType}</TableCell>
-                      <TableCell className='text-right'>
-                        <div className='flex items-center justify-end gap-2'>
-                          <Button
-                            type='button'
-                            variant='ghost'
-                            size='icon'
-                            onClick={() =>
-                              handleToggleContacted(
-                                lead,
-                                lead.hasBeenContacted !== true
-                              )
-                            }
-                            aria-label={
-                              lead.hasBeenContacted
-                                ? 'Marcar como nao contatado'
-                                : 'Marcar como contatado'
-                            }
-                            disabled={togglingLeadId === lead.id}
-                            className={
-                              lead.hasBeenContacted
-                                ? 'text-green-600'
-                                : 'text-red-600'
-                            }
-                          >
-                            <FontAwesomeIcon icon={faPhone} />
-                          </Button>
-                          <Button
-                            type='button'
-                            variant='ghost'
-                            size='icon'
-                            onClick={() => openEditLead(lead)}
-                            aria-label='Editar lead'
-                          >
-                            <FontAwesomeIcon icon={faPenToSquare} />
-                          </Button>
-                          <Button
-                            type='button'
-                            variant='ghost'
-                            size='icon'
-                            onClick={() => openDeleteDialog(lead)}
-                            aria-label='Excluir lead'
-                            disabled={deletingLeadId === lead.id}
-                          >
-                            <FontAwesomeIcon icon={faXmark} />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                          <span className='text-muted-foreground truncate text-xs'>
+                            {lead.location}
+                          </span>
+                        </>
+                      ) : null}
+                    </div>
+                  </div>
+                  {lead.interestedServices?.length ? (
+                    <div className='flex flex-wrap gap-1.5'>
+                      {lead.interestedServices.map((service) => (
+                        <span
+                          key={`${lead.id}-${service}`}
+                          className='bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-[10px]'
+                        >
+                          {service}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                </button>
+              ))}
             </div>
           )}
         </CardContent>
       </Card>
+
+      <Dialog
+        open={Boolean(selectedLead)}
+        onOpenChange={(open) => {
+          if (!open) setSelectedLead(null);
+        }}
+      >
+        <DialogContent className='max-h-[90vh] w-[calc(100%-1.5rem)] max-w-2xl overflow-y-auto'>
+          <DialogHeader>
+            <DialogTitle>Detalhes do Lead</DialogTitle>
+            <DialogDescription>
+              Informacoes completas para acompanhamento.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedLead ? (
+            <div className='grid gap-4'>
+              <div className='grid grid-cols-2 gap-3'>
+                <div className='grid gap-0.5'>
+                  <span className='text-muted-foreground text-xs'>
+                    Responsável
+                  </span>
+                  <span className='text-sm font-medium'>
+                    {selectedLead.responsibleName || '-'}
+                  </span>
+                </div>
+                <div className='grid gap-0.5'>
+                  <span className='text-muted-foreground text-xs'>Data</span>
+                  <span className='text-sm font-medium'>
+                    {formatLeadDate(selectedLead.date)}
+                  </span>
+                </div>
+                <div className='grid gap-0.5'>
+                  <span className='text-muted-foreground text-xs'>CNPJ</span>
+                  <span className='text-sm font-medium'>
+                    {selectedLead.cnpj || '-'}
+                  </span>
+                </div>
+                <div className='grid gap-0.5'>
+                  <span className='text-muted-foreground text-xs'>
+                    Localização
+                  </span>
+                  <span className='text-sm font-medium'>
+                    {selectedLead.location || '-'}
+                  </span>
+                </div>
+              </div>
+
+              {selectedLead.interestedServices?.length ? (
+                <div className='grid gap-1'>
+                  <span className='text-muted-foreground text-xs'>
+                    Serviços
+                  </span>
+                  <div className='flex flex-wrap gap-1.5'>
+                    {selectedLead.interestedServices.map((service) => (
+                      <span
+                        key={`${selectedLead.id}-${service}`}
+                        className='bg-muted text-muted-foreground rounded-full px-2.5 py-0.5 text-xs'
+                      >
+                        {service}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {selectedLead.proposalLink ? (
+                <div className='grid gap-0.5'>
+                  <span className='text-muted-foreground text-xs'>
+                    Link da proposta
+                  </span>
+                  <a
+                    href={
+                      selectedLead.proposalLink.startsWith('http')
+                        ? selectedLead.proposalLink
+                        : `https://${selectedLead.proposalLink}`
+                    }
+                    target='_blank'
+                    rel='noopener noreferrer'
+                    className='text-sm break-all text-blue-600 underline dark:text-blue-400'
+                  >
+                    {selectedLead.proposalLink}
+                  </a>
+                </div>
+              ) : null}
+
+              <div className='grid gap-2'>
+                <span className='text-muted-foreground text-xs'>Contatos</span>
+                {selectedLead.contacts?.length ? (
+                  <div className='grid gap-2'>
+                    {selectedLead.contacts.map((contact, index) => (
+                      <div
+                        key={`${contact.email}-${index}`}
+                        className='grid grid-cols-2 gap-x-3 gap-y-1 rounded-md border p-3 text-sm'
+                      >
+                        <div className='col-span-2 font-medium'>
+                          {contact.name || '-'}
+                        </div>
+                        <span className='text-muted-foreground text-xs'>
+                          {contact.role || '-'}
+                        </span>
+                        <span className='text-muted-foreground text-xs'>
+                          {contact.phone || '-'}
+                        </span>
+                        <span className='text-muted-foreground col-span-2 truncate text-xs'>
+                          {contact.email || '-'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <span className='text-muted-foreground text-sm'>-</span>
+                )}
+              </div>
+
+              <div className='grid grid-cols-3 gap-2'>
+                <Button
+                  type='button'
+                  variant='outline'
+                  size='sm'
+                  className={`w-full ${
+                    selectedLead.hasBeenContacted
+                      ? 'text-green-600'
+                      : 'text-red-600'
+                  }`}
+                  onClick={() =>
+                    handleToggleContacted(
+                      selectedLead,
+                      selectedLead.hasBeenContacted !== true
+                    )
+                  }
+                  disabled={togglingLeadId === selectedLead.id}
+                >
+                  <FontAwesomeIcon icon={faPhone} />
+                  <span className='ml-1 hidden sm:inline'>
+                    {selectedLead.hasBeenContacted
+                      ? 'Nao contatado'
+                      : 'Contatado'}
+                  </span>
+                </Button>
+                <Button
+                  type='button'
+                  variant='outline'
+                  size='sm'
+                  className='w-full'
+                  onClick={() => openEditLead(selectedLead)}
+                >
+                  <FontAwesomeIcon icon={faPenToSquare} />
+                  <span className='ml-1'>Editar</span>
+                </Button>
+                <Button
+                  type='button'
+                  variant='destructive'
+                  size='sm'
+                  className='w-full'
+                  onClick={() => openDeleteDialog(selectedLead)}
+                  disabled={deletingLeadId === selectedLead.id}
+                >
+                  <FontAwesomeIcon icon={faXmark} />
+                  <span className='ml-1'>Excluir</span>
+                </Button>
+              </div>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className='max-h-[90vh] w-[calc(100%-1.5rem)] max-w-2xl overflow-y-auto'>
@@ -507,9 +746,9 @@ export default function LeadsPage() {
             </DialogDescription>
           </DialogHeader>
           <form className='grid gap-4 md:grid-cols-2' onSubmit={handleSubmit}>
-            <div className='grid gap-2'>
+            <div className='grid min-w-0 gap-2'>
               <label className='text-sm font-medium' htmlFor='responsavel'>
-                Responsavel
+                Responsável
               </label>
               <Select
                 value={form.responsibleId}
@@ -524,8 +763,14 @@ export default function LeadsPage() {
                   }));
                 }}
               >
-                <SelectTrigger id='responsavel'>
-                  <SelectValue placeholder='Selecione o responsavel' />
+                <SelectTrigger
+                  id='responsavel'
+                  className='w-full min-w-0 overflow-hidden'
+                >
+                  <SelectValue
+                    placeholder='Selecione o responsável'
+                    className='truncate'
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   {sortedMembers.map((member) => (
@@ -555,20 +800,118 @@ export default function LeadsPage() {
             </div>
 
             <div className='grid gap-2'>
-              <label className='text-sm font-medium' htmlFor='contact'>
-                Contato
+              <label className='text-sm font-medium' htmlFor='cnpj'>
+                CNPJ
               </label>
               <Input
-                id='contact'
-                value={form.contact}
+                id='cnpj'
+                value={form.cnpj}
                 onChange={(event) =>
                   setForm((current) => ({
                     ...current,
-                    contact: event.target.value
+                    cnpj: event.target.value
                   }))
                 }
-                placeholder='Telefone, email ou nome do contato'
+                placeholder='00.000.000/0000-00'
               />
+            </div>
+
+            <div className='grid gap-2 md:col-span-2'>
+              <label className='text-sm font-medium' htmlFor='contactName'>
+                Contatos
+              </label>
+              <div className='grid gap-3'>
+                {formContacts.map((contact, index) => (
+                  <div
+                    key={`contact-${index}`}
+                    className='grid gap-3 rounded-md border p-3 md:grid-cols-2'
+                  >
+                    <div className='grid gap-2'>
+                      <label
+                        className='text-muted-foreground text-xs font-medium'
+                        htmlFor={`contact-name-${index}`}
+                      >
+                        Nome
+                      </label>
+                      <Input
+                        id={`contact-name-${index}`}
+                        value={contact.name}
+                        onChange={(event) =>
+                          updateContact(index, 'name', event.target.value)
+                        }
+                        placeholder='Ex: Ariel'
+                      />
+                    </div>
+                    <div className='grid gap-2'>
+                      <label
+                        className='text-muted-foreground text-xs font-medium'
+                        htmlFor={`contact-role-${index}`}
+                      >
+                        Funcao
+                      </label>
+                      <Input
+                        id={`contact-role-${index}`}
+                        value={contact.role}
+                        onChange={(event) =>
+                          updateContact(index, 'role', event.target.value)
+                        }
+                        placeholder='Ex: Gerente'
+                      />
+                    </div>
+                    <div className='grid gap-2'>
+                      <label
+                        className='text-muted-foreground text-xs font-medium'
+                        htmlFor={`contact-email-${index}`}
+                      >
+                        Email
+                      </label>
+                      <Input
+                        id={`contact-email-${index}`}
+                        type='email'
+                        value={contact.email}
+                        onChange={(event) =>
+                          updateContact(index, 'email', event.target.value)
+                        }
+                        placeholder='email@contato.com'
+                      />
+                    </div>
+                    <div className='grid gap-2'>
+                      <label
+                        className='text-muted-foreground text-xs font-medium'
+                        htmlFor={`contact-phone-${index}`}
+                      >
+                        Telefone
+                      </label>
+                      <Input
+                        id={`contact-phone-${index}`}
+                        value={contact.phone}
+                        onChange={(event) =>
+                          updateContact(index, 'phone', event.target.value)
+                        }
+                        placeholder='(00) 00000-0000'
+                      />
+                    </div>
+                    <div className='md:col-span-2'>
+                      <Button
+                        type='button'
+                        variant='outline'
+                        size='sm'
+                        onClick={() => removeContact(index)}
+                      >
+                        Remover contato
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                <Button
+                  type='button'
+                  variant='secondary'
+                  size='sm'
+                  onClick={addContact}
+                >
+                  Adicionar contato
+                </Button>
+              </div>
             </div>
 
             <div className='grid gap-2'>
@@ -590,7 +933,7 @@ export default function LeadsPage() {
 
             <div className='grid gap-2'>
               <label className='text-sm font-medium' htmlFor='location'>
-                Localizacao
+                Localização
               </label>
               <Input
                 id='location'
@@ -606,19 +949,39 @@ export default function LeadsPage() {
             </div>
 
             <div className='grid gap-2'>
-              <label className='text-sm font-medium' htmlFor='leadType'>
-                Tipo
+              <label
+                className='text-sm font-medium'
+                htmlFor='interestedServices'
+              >
+                Serviços de interesse
               </label>
               <Input
-                id='leadType'
-                value={form.leadType}
+                id='interestedServices'
+                value={form.interestedServices}
                 onChange={(event) =>
                   setForm((current) => ({
                     ...current,
-                    leadType: event.target.value
+                    interestedServices: event.target.value
                   }))
                 }
-                placeholder='Ex: Residencial, Comercial...'
+                placeholder='Ex: SPDA, Projeto Eletrico, Automacao'
+              />
+            </div>
+
+            <div className='grid gap-2 md:col-span-2'>
+              <label className='text-sm font-medium' htmlFor='proposalLink'>
+                Link da proposta
+              </label>
+              <Input
+                id='proposalLink'
+                value={form.proposalLink}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    proposalLink: event.target.value
+                  }))
+                }
+                placeholder='www.proposta.com'
               />
             </div>
 
