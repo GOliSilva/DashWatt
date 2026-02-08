@@ -97,6 +97,13 @@ export const navItems: NavItem[] = [
     items: []
   },
   {
+    title: 'Leads',
+    url: '/dashboard/leads',
+    icon: 'teams',
+    isActive: false,
+    items: []
+  },
+  {
     title: 'Estatísticas',
     url: '/dashboard/estatisticas',
     icon: 'chart',

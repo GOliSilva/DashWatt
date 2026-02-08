@@ -33,6 +33,7 @@ export function useFilteredNavItems(items: NavItem[]) {
       (member) => member.id === user?.uid || member.email === user?.email
     );
     const role = currentMember?.role?.toLowerCase().trim() ?? '';
+    const sector = currentMember?.sector?.toLowerCase().trim() ?? '';
     const allowAcompanhamento = role !== '' && role !== 'consultor';
 
     const allowedUrls = new Set(['/dashboard/individual']);
@@ -43,6 +44,13 @@ export function useFilteredNavItems(items: NavItem[]) {
     const allowPonto = ['diretor', 'presidente', 'assessor'].includes(role);
     if (allowPonto) {
       allowedUrls.add('/dashboard/ponto');
+    }
+
+    const allowLeads =
+      ['diretor', 'presidente', 'assessor'].includes(role) ||
+      sector === 'Comercial';
+    if (allowLeads) {
+      allowedUrls.add('/dashboard/leads');
     }
 
     const filterItem = (item: NavItem): NavItem | null => {
