@@ -36,7 +36,12 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger
+} from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PieGraph } from '@/features/overview/components/pie-graph';
 import { firebaseDb } from '@/lib/firebase/client';
@@ -58,10 +63,7 @@ import { FirebaseError } from 'firebase/app';
 import { format } from 'date-fns';
 import { CalendarIcon } from 'lucide-react';
 import { toast } from 'sonner';
-import type {
-  Project as FirebaseProject,
-  Member as FirebaseMember
-} from '@/contexts/firebase-data-context';
+import type { Project as FirebaseProject, Member as FirebaseMember } from '@/contexts/firebase-data-context';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPenToSquare } from '@fortawesome/free-regular-svg-icons';
 import { faXmark } from '@fortawesome/free-solid-svg-icons';
@@ -133,11 +135,12 @@ const projectStatusOptions = statusOptions.filter(
 );
 const healthOptions = ['Estável', 'Atenção', 'Ok'];
 const areaOptions = [
-  'Projetos',
+  'Automação',
+  'Elétrica',
   'Comercial',
+  'Institucional',
   'Marketing',
-  'Executivo',
-  'Institucional'
+  'Executivo'
 ];
 const tiposAutomacao = ['Domótica', 'Industrial'];
 const tiposEletrica = ['Projeto Elétrico', 'Solar'];
@@ -150,11 +153,12 @@ const roleOptions = [
   'Presidente'
 ];
 const sectorOptions = [
-  'Projetos',
+  'Automação',
+  'Elétrica',
   'Comercial',
+  'Institucional',
   'Marketing',
-  'Executivo',
-  'Institucional'
+  'Executivo'
 ];
 
 const memberStatusStyles: Record<string, string> = {
@@ -193,22 +197,14 @@ type MemberFormState = {
 
 export default function AcompanhamentoPage() {
   const router = useRouter();
-  const {
-    projects: contextProjects,
-    members: contextMembers,
-    isLoading: isDataLoading
-  } = useFirebaseData();
+  const { projects: contextProjects, members: contextMembers, isLoading: isDataLoading } = useFirebaseData();
   const [areaFilter, setAreaFilter] = React.useState('Geral');
   const [statusFilter, setStatusFilter] = React.useState('Todos');
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
-  const [editingProjectId, setEditingProjectId] = React.useState<string | null>(
-    null
-  );
+  const [editingProjectId, setEditingProjectId] = React.useState<string | null>(null);
   const [isDeleteProjectOpen, setIsDeleteProjectOpen] = React.useState(false);
   const [isDeletingProject, setIsDeletingProject] = React.useState(false);
-  const [projectToDelete, setProjectToDelete] = React.useState<Project | null>(
-    null
-  );
+  const [projectToDelete, setProjectToDelete] = React.useState<Project | null>(null);
   const [isSaving, setIsSaving] = React.useState(false);
   const [leadershipMembers, setLeadershipMembers] = React.useState<Member[]>(
     []
@@ -275,10 +271,7 @@ export default function AcompanhamentoPage() {
   const projectList = React.useMemo(() => {
     return contextProjects.map((project) => {
       const updatedLabel = project.updatedAt
-        ? format(
-            project.updatedAt.toDate?.() || project.updatedAt,
-            'dd/MM/yyyy'
-          )
+        ? format(project.updatedAt.toDate?.() || project.updatedAt, 'dd/MM/yyyy')
         : '---';
       const startLabel = project.start
         ? format(project.start.toDate?.() || project.start, 'dd/MM/yyyy')
@@ -375,8 +368,8 @@ export default function AcompanhamentoPage() {
     const scopedMembers = isGeneral
       ? contextMembers
       : contextMembers.filter(
-          (member) => normalizeValue(member.sector) === selectedSector
-        );
+        (member) => normalizeValue(member.sector) === selectedSector
+      );
 
     const memberIds = new Set(scopedMembers.map((member) => member.id));
     const occupiedIds = new Set<string>();
@@ -390,12 +383,10 @@ export default function AcompanhamentoPage() {
     endDate.setDate(endDate.getDate() + 7);
 
     contextProjects.forEach((project) => {
-      const activities = (project as any)?.Activities as
-        | Array<{
-            ownerId?: string;
-            status?: string;
-          }>
-        | undefined;
+      const activities = (project as any)?.Activities as Array<{
+        ownerId?: string;
+        status?: string;
+      }> | undefined;
       if (!Array.isArray(activities)) return;
 
       activities.forEach((activity) => {
@@ -412,13 +403,11 @@ export default function AcompanhamentoPage() {
     });
 
     scopedMembers.forEach((member) => {
-      const agendaTasks = (member as any)?.agendaTasks as
-        | Array<{
-            priority?: string;
-            status?: string;
-            due?: string;
-          }>
-        | undefined;
+      const agendaTasks = (member as any)?.agendaTasks as Array<{
+        priority?: string;
+        status?: string;
+        due?: string;
+      }> | undefined;
       if (
         Array.isArray(agendaTasks) &&
         agendaTasks.some((task) => {
@@ -473,6 +462,7 @@ export default function AcompanhamentoPage() {
   React.useEffect(() => {
     setLeadershipMembers(memberList.filter((member) => member.isLeadership));
   }, [memberList]);
+
 
   React.useEffect(() => {
     if (leadershipMembers.length === 0) {
@@ -597,10 +587,13 @@ export default function AcompanhamentoPage() {
         await updateDoc(projectRef, projectPayload);
         toast.success('Projeto atualizado com sucesso.');
       } else {
-        await addDoc(collection(firebaseDb, 'projects'), {
-          ...projectPayload,
-          createdAt: serverTimestamp()
-        });
+        await addDoc(
+          collection(firebaseDb, 'projects'),
+          {
+            ...projectPayload,
+            createdAt: serverTimestamp()
+          }
+        );
         toast.success('Projeto criado com sucesso.');
       }
       resetProjectForm();
@@ -658,16 +651,13 @@ export default function AcompanhamentoPage() {
   );
 
   const projectsCardContent = (
-    <CardContent className='flex min-h-0 flex-1 flex-col'>
-      <ScrollArea className='-mr-3 min-h-0 flex-1 pr-3'>
+    <CardContent className='flex-1 min-h-0 flex flex-col'>
+      <ScrollArea className='flex-1 min-h-0 pr-3 -mr-3'>
         <div className='space-y-2'>
           {isDataLoading ? (
             <div className='space-y-2'>
               {Array.from({ length: 4 }).map((_, index) => (
-                <div
-                  key={`project-skeleton-${index}`}
-                  className='rounded-md border p-3'
-                >
+                <div key={`project-skeleton-${index}`} className='rounded-md border p-3'>
                   <Skeleton className='h-4 w-2/3' />
                   <Skeleton className='mt-2 h-3 w-1/2' />
                 </div>
@@ -686,20 +676,16 @@ export default function AcompanhamentoPage() {
                 onKeyDown={(event) => {
                   if (event.key === 'Enter' || event.key === ' ') {
                     event.preventDefault();
-                    router.push(
-                      `/dashboard/acompanhamento/projetos/${project.id}`
-                    );
+                    router.push(`/dashboard/acompanhamento/projetos/${project.id}`);
                   }
                 }}
-                onClick={() =>
-                  router.push(
-                    `/dashboard/acompanhamento/projetos/${project.id}`
-                  )
-                }
+                onClick={() => router.push(`/dashboard/acompanhamento/projetos/${project.id}`)}
                 className='hover:bg-accent focus-visible:ring-ring/50 flex w-full items-start justify-between gap-3 rounded-md border p-3 text-left transition-colors focus-visible:ring-[3px] focus-visible:outline-none'
               >
                 <div className='flex flex-col'>
-                  <span className='text-sm font-medium'>{project.name}</span>
+                  <span className='text-sm font-medium'>
+                    {project.name}
+                  </span>
                   <span className='text-muted-foreground text-xs'>
                     {project.status} - Atualizado {project.updated}
                   </span>
@@ -749,13 +735,16 @@ export default function AcompanhamentoPage() {
   );
 
   const projectsCardMobile = (
-    <Card className='flex h-full min-h-0 flex-col'>
+    <Card className='h-full flex flex-col min-h-0'>
       <CardHeader>
         <CardTitle>Projetos em acompanhamento</CardTitle>
         <CardDescription>Lista priorizada com status</CardDescription>
-        <div className='mt-3 flex flex-wrap items-center justify-end gap-2'>
+        <div className='mt-3 flex flex-wrap items-center gap-2 justify-end'>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className='h-8 w-40' aria-label='Filtrar por status'>
+            <SelectTrigger
+              className='h-8 w-40'
+              aria-label='Filtrar por status'
+            >
               <SelectValue placeholder='Status' />
             </SelectTrigger>
             <SelectContent align='end'>
@@ -776,7 +765,7 @@ export default function AcompanhamentoPage() {
   );
 
   const projectsCardDesktop = (
-    <Card className='flex h-105 flex-col'>
+    <Card className='h-105 flex flex-col'>
       <CardHeader>
         <CardTitle>Projetos em acompanhamento</CardTitle>
         <CardDescription>Lista priorizada com status</CardDescription>
@@ -847,21 +836,18 @@ export default function AcompanhamentoPage() {
   );
 
   const membersCard = (
-    <Card className='flex h-full flex-col lg:h-105'>
+    <Card className='h-full lg:h-105 flex flex-col'>
       <CardHeader>
         <CardTitle>Membros da equipe</CardTitle>
         <CardDescription>Última atividade registrada</CardDescription>
       </CardHeader>
-      <CardContent className='flex min-h-0 flex-1 flex-col'>
-        <ScrollArea className='-mr-3 min-h-0 flex-1 pr-3'>
+      <CardContent className='flex-1 min-h-0 flex flex-col'>
+        <ScrollArea className='flex-1 min-h-0 pr-3 -mr-3'>
           <div className='space-y-2'>
             {isDataLoading ? (
               <div className='space-y-2'>
                 {Array.from({ length: 4 }).map((_, index) => (
-                  <div
-                    key={`member-skeleton-${index}`}
-                    className='rounded-md border p-3'
-                  >
+                  <div key={`member-skeleton-${index}`} className='rounded-md border p-3'>
                     <Skeleton className='h-4 w-1/2' />
                     <Skeleton className='mt-2 h-3 w-2/3' />
                   </div>
@@ -879,12 +865,16 @@ export default function AcompanhamentoPage() {
                   className='hover:bg-accent focus-visible:ring-ring/50 flex w-full items-start justify-between gap-3 rounded-md border p-3 text-left transition-colors focus-visible:ring-[3px] focus-visible:outline-none'
                 >
                   <div className='flex flex-col'>
-                    <span className='text-sm font-medium'>{member.name}</span>
+                    <span className='text-sm font-medium'>
+                      {member.name}
+                    </span>
                     <span className='text-muted-foreground text-xs'>
                       {member.role} - {member.activity}
                     </span>
                   </div>
-                  <Badge variant='outline'>{member.sector || '--'}</Badge>
+                  <Badge variant='outline'>
+                    {member.sector || '--'}
+                  </Badge>
                 </Link>
               ))
             )}
@@ -895,7 +885,7 @@ export default function AcompanhamentoPage() {
   );
 
   const alertsCard = (
-    <Card className='flex h-full flex-col lg:h-105'>
+    <Card className='h-full lg:h-105 flex flex-col'>
       <CardHeader>
         <CardTitle>Alertas recentes</CardTitle>
         <CardDescription>Eventos que exigem atenção</CardDescription>
@@ -996,51 +986,26 @@ export default function AcompanhamentoPage() {
       hideHeaderOnMobile
       scrollable={false}
     >
-      <div className='flex h-full min-h-0 flex-col gap-3 md:gap-4'>
-        <div className='flex min-h-0 flex-1 flex-col lg:hidden'>
-          <div className='mb-3 flex shrink-0 justify-end'>
-            {areaFilterControl}
-          </div>
-          <Tabs
-            defaultValue='projects'
-            className='flex min-h-0 w-full flex-1 flex-col'
-          >
-            <TabsList className='grid h-auto w-full grid-cols-4'>
-              <TabsTrigger value='projects' className='py-2 text-xs'>
-                Projetos
-              </TabsTrigger>
-              <TabsTrigger value='occupancy' className='py-2 text-xs'>
-                Ocupação
-              </TabsTrigger>
-              <TabsTrigger value='members' className='py-2 text-xs'>
-                Membros
-              </TabsTrigger>
-              <TabsTrigger value='alerts' className='py-2 text-xs'>
-                Alertas
-              </TabsTrigger>
+      <div className='flex h-full flex-col gap-3 md:gap-4 min-h-0'>
+        <div className='lg:hidden flex-1 flex flex-col min-h-0'>
+          <div className='mb-3 flex justify-end shrink-0'>{areaFilterControl}</div>
+          <Tabs defaultValue='projects' className='w-full flex flex-col flex-1 min-h-0'>
+            <TabsList className='grid w-full grid-cols-4 h-auto'>
+              <TabsTrigger value='projects' className='text-xs py-2'>Projetos</TabsTrigger>
+              <TabsTrigger value='occupancy' className='text-xs py-2'>Ocupação</TabsTrigger>
+              <TabsTrigger value='members' className='text-xs py-2'>Membros</TabsTrigger>
+              <TabsTrigger value='alerts' className='text-xs py-2'>Alertas</TabsTrigger>
             </TabsList>
-            <TabsContent
-              value='projects'
-              className='mt-3 flex min-h-0 flex-1 flex-col'
-            >
+            <TabsContent value='projects' className='mt-3 flex-1 flex flex-col min-h-0'>
               {projectsCardMobile}
             </TabsContent>
-            <TabsContent
-              value='occupancy'
-              className='mt-3 flex min-h-0 flex-1 flex-col'
-            >
+            <TabsContent value='occupancy' className='mt-3 flex-1 flex flex-col min-h-0'>
               {occupancyCard}
             </TabsContent>
-            <TabsContent
-              value='members'
-              className='mt-3 flex min-h-0 flex-1 flex-col'
-            >
+            <TabsContent value='members' className='mt-3 flex-1 flex flex-col min-h-0'>
               {membersCard}
             </TabsContent>
-            <TabsContent
-              value='alerts'
-              className='mt-3 flex min-h-0 flex-1 flex-col'
-            >
+            <TabsContent value='alerts' className='mt-3 flex-1 flex flex-col min-h-0'>
               {alertsCard}
             </TabsContent>
           </Tabs>
@@ -1073,7 +1038,10 @@ export default function AcompanhamentoPage() {
                 : 'Adicione as informações principais do projeto.'}
             </DialogDescription>
           </DialogHeader>
-          <form className='space-y-5' onSubmit={handleCreateProject}>
+          <form
+            className='space-y-5'
+            onSubmit={handleCreateProject}
+          >
             <div className='space-y-2'>
               <div className='text-muted-foreground text-xs font-semibold uppercase'>
                 Resumo
@@ -1113,7 +1081,9 @@ export default function AcompanhamentoPage() {
                 <Select
                   value={newProject.managerId}
                   disabled={
-                    isSaving || isDataLoading || leadershipMembers.length === 0
+                    isSaving ||
+                    isDataLoading ||
+                    leadershipMembers.length === 0
                   }
                   onValueChange={(value) => {
                     const selected = leadershipMembers.find(
@@ -1194,7 +1164,9 @@ export default function AcompanhamentoPage() {
                   disabled={isSaving}
                   onValueChange={(value) => {
                     const novosTipos =
-                      value === 'Automação' ? tiposAutomacao : tiposEletrica;
+                      value === 'Automação'
+                        ? tiposAutomacao
+                        : tiposEletrica;
                     setNewProject((current) => ({
                       ...current,
                       area: value,
@@ -1250,9 +1222,8 @@ export default function AcompanhamentoPage() {
                       type='button'
                       variant='outline'
                       disabled={isSaving}
-                      className={`w-full justify-between ${
-                        startDate ? '' : 'text-muted-foreground'
-                      }`}
+                      className={`w-full justify-between ${startDate ? '' : 'text-muted-foreground'
+                        }`}
                     >
                       {startDate
                         ? format(startDate, 'dd/MM/yyyy')
