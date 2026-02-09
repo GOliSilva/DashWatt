@@ -28,6 +28,7 @@ import {
   DialogTitle
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -97,6 +98,14 @@ type Lead = {
   hasBeenContacted?: boolean;
 };
 
+type LeadComment = {
+  id: string;
+  authorId: string | null;
+  authorName: string;
+  text: string;
+  createdAt?: unknown;
+};
+
 const initialFormState: LeadFormState = {
   responsibleId: '',
   responsibleName: '',
@@ -136,7 +145,13 @@ export default function LeadsPage() {
   const [isLoadingLeads, setIsLoadingLeads] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [selectedLead, setSelectedLead] = React.useState<Lead | null>(null);
+  const [comments, setComments] = React.useState<LeadComment[]>([]);
+  const [isLoadingComments, setIsLoadingComments] = React.useState(false);
+  const [commentText, setCommentText] = React.useState('');
+  const [isSavingComment, setIsSavingComment] = React.useState(false);
   const formContacts = form.contacts ?? [];
+  const selectedLeadId = selectedLead ? selectedLead.id : null;
+  const hasFirebaseDb = Boolean(firebaseDb);
 
   const sortedMembers = React.useMemo(() => {
     return [...(members ?? [])].sort((a, b) =>
@@ -257,6 +272,21 @@ export default function LeadsPage() {
     return '';
   };
 
+  const formatCommentDate = (value: unknown) => {
+    if (!value) return '-';
+
+    if (typeof value === 'object') {
+      const maybeTimestamp = value as { toDate?: () => Date };
+      if (maybeTimestamp.toDate) {
+        return maybeTimestamp.toDate().toLocaleString('pt-BR');
+      }
+    }
+
+    if (typeof value === 'string') return value;
+
+    return '-';
+  };
+
   const openCreateLead = () => {
     setForm(initialFormState);
     setEditingLeadId(null);
@@ -350,7 +380,41 @@ export default function LeadsPage() {
 
   const openLeadDetails = (lead: Lead) => {
     setSelectedLead(lead);
+    setCommentText('');
   };
+
+  React.useEffect(() => {
+    if (!hasFirebaseDb || !selectedLeadId) {
+      setComments([]);
+      setIsLoadingComments(false);
+      return;
+    }
+
+    setIsLoadingComments(true);
+    const commentsQuery = query(
+      collection(firebaseDb, 'leads', selectedLeadId, 'comments'),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(
+      commentsQuery,
+      (snapshot) => {
+        const data = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...(doc.data() as Omit<LeadComment, 'id'>)
+        }));
+        setComments(data as LeadComment[]);
+        setIsLoadingComments(false);
+      },
+      (error) => {
+        console.error('Erro ao carregar comentarios:', error);
+        toast.error('Nao foi possivel carregar os comentarios.');
+        setIsLoadingComments(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [selectedLeadId, hasFirebaseDb]);
 
   const handleDeleteLead = async () => {
     if (!firebaseDb) {
@@ -395,6 +459,42 @@ export default function LeadsPage() {
       toast.error('Nao foi possivel atualizar o lead.');
     } finally {
       setTogglingLeadId(null);
+    }
+  };
+
+  const handleAddComment = async () => {
+    if (!firebaseDb || !selectedLeadId) {
+      toast.error('Banco de dados indisponivel.');
+      return;
+    }
+
+    const message = commentText.trim();
+    if (!message) {
+      toast.error('Digite um comentario antes de salvar.');
+      return;
+    }
+
+    const authorName =
+      user?.displayName || user?.email || 'Usuario nao identificado';
+
+    setIsSavingComment(true);
+    try {
+      await addDoc(
+        collection(firebaseDb, 'leads', selectedLeadId, 'comments'),
+        {
+          text: message,
+          authorId: user?.uid ?? null,
+          authorName,
+          createdAt: serverTimestamp()
+        }
+      );
+      setCommentText('');
+      toast.success('Comentario adicionado.');
+    } catch (error) {
+      console.log(error);
+      toast.error('Nao foi possivel adicionar o comentario.');
+    } finally {
+      setIsSavingComment(false);
     }
   };
 
@@ -635,7 +735,7 @@ export default function LeadsPage() {
               {selectedLead.proposalLink ? (
                 <div className='grid gap-0.5'>
                   <span className='text-muted-foreground text-xs'>
-                    Link da proposta
+                    Link dos arquivos
                   </span>
                   <a
                     href={
@@ -678,6 +778,61 @@ export default function LeadsPage() {
                   </div>
                 ) : (
                   <span className='text-muted-foreground text-sm'>-</span>
+                )}
+              </div>
+
+              <div className='grid gap-2'>
+                <span className='text-muted-foreground text-xs'>
+                  Comentarios
+                </span>
+                <div className='grid gap-2 rounded-md border p-3'>
+                  <Textarea
+                    value={commentText}
+                    onChange={(event) => setCommentText(event.target.value)}
+                    placeholder='Adicione um comentario sobre a evolucao do lead...'
+                    rows={3}
+                  />
+                  <div className='flex justify-end'>
+                    <Button
+                      type='button'
+                      size='sm'
+                      onClick={handleAddComment}
+                      disabled={isSavingComment}
+                    >
+                      {isSavingComment ? 'Salvando...' : 'Adicionar comentario'}
+                    </Button>
+                  </div>
+                </div>
+
+                {isLoadingComments ? (
+                  <span className='text-muted-foreground text-sm'>
+                    Carregando comentarios...
+                  </span>
+                ) : comments.length ? (
+                  <div className='grid gap-2'>
+                    {comments.map((comment) => (
+                      <div
+                        key={comment.id}
+                        className='grid gap-1 rounded-md border p-3 text-sm'
+                      >
+                        <div className='flex flex-wrap items-center justify-between gap-2'>
+                          <span className='font-medium'>
+                            {comment.authorName || 'Usuario'}
+                          </span>
+                          <span className='text-muted-foreground text-xs'>
+                            {formatCommentDate(comment.createdAt)}
+                          </span>
+                        </div>
+                        <p className='text-muted-foreground text-sm whitespace-pre-wrap'>
+                          {comment.text}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <span className='text-muted-foreground text-sm'>
+                    Nenhum comentario registrado.
+                  </span>
                 )}
               </div>
 
@@ -970,7 +1125,7 @@ export default function LeadsPage() {
 
             <div className='grid gap-2 md:col-span-2'>
               <label className='text-sm font-medium' htmlFor='proposalLink'>
-                Link da proposta
+                Link dos arquivos
               </label>
               <Input
                 id='proposalLink'
