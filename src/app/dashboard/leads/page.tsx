@@ -124,6 +124,12 @@ export default function LeadsPage() {
     };
   }, [user]);
 
+  React.useEffect(() => {
+    if (!selectedLeadId) return;
+    const updatedLead = leads.find((lead) => lead.id === selectedLeadId);
+    if (updatedLead) setSelectedLead(updatedLead);
+  }, [leads, selectedLeadId]);
+
   const filteredLeads = React.useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
     if (!term) return leads;
@@ -393,7 +399,18 @@ export default function LeadsPage() {
       return;
     }
 
+    const previousValue = lead.hasBeenContacted === true;
     setTogglingLeadId(lead.id);
+    setLeads((current) =>
+      current.map((item) =>
+        item.id === lead.id ? { ...item, hasBeenContacted: value } : item
+      )
+    );
+    setSelectedLead((current) =>
+      current && current.id === lead.id
+        ? { ...current, hasBeenContacted: value }
+        : current
+    );
     try {
       await updateDoc(doc(firebaseDb, 'leads', lead.id), {
         hasBeenContacted: value,
@@ -401,6 +418,18 @@ export default function LeadsPage() {
       });
     } catch (error) {
       console.log(error);
+      setLeads((current) =>
+        current.map((item) =>
+          item.id === lead.id
+            ? { ...item, hasBeenContacted: previousValue }
+            : item
+        )
+      );
+      setSelectedLead((current) =>
+        current && current.id === lead.id
+          ? { ...current, hasBeenContacted: previousValue }
+          : current
+      );
       toast.error('Nao foi possivel atualizar o lead.');
     } finally {
       setTogglingLeadId(null);
