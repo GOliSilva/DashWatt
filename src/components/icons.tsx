@@ -37,7 +37,8 @@ import {
   IconStar,
   IconBox,
   IconChartBar,
-  IconClock2
+  IconClock2,
+  IconMessageCircle2
 } from '@tabler/icons-react';
 
 export type Icon = React.ComponentType<IconProps>;
@@ -82,4 +83,5 @@ export const Icons = {
   profile: IconUser,
   clock: IconClock2,
   chart: IconChartBar,
+  feedback: IconMessageCircle2
 };

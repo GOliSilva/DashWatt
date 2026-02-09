@@ -118,6 +118,13 @@ export const navItems: NavItem[] = [
     items: []
   },
   {
+    title: 'Feedback 360°',
+    url: '/dashboard/feedback360',
+    icon: 'feedback',
+    isActive: false,
+    items: []
+  },
+  {
     title: 'Pro',
     url: '#', // Placeholder as there is no direct link for the parent
     icon: 'pro',
