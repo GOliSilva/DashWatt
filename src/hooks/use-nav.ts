@@ -53,6 +53,16 @@ export function useFilteredNavItems(items: NavItem[]) {
       allowedUrls.add('/dashboard/leads');
     }
 
+    const allowTeamview = [
+      'diretor',
+      'presidente',
+      'assessor',
+      'gerente'
+    ].includes(role);
+    if (allowTeamview) {
+      allowedUrls.add('/dashboard/teamview');
+    }
+
     const filterItem = (item: NavItem): NavItem | null => {
       const includeItem = Boolean(item.url && allowedUrls.has(item.url));
       if (item.items && item.items.length > 0) {

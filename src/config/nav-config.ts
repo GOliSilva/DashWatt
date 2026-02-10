@@ -104,6 +104,13 @@ export const navItems: NavItem[] = [
     items: []
   },
   {
+    title: 'Visão do time',
+    url: '/dashboard/teamview',
+    icon: 'dashboard',
+    isActive: false,
+    items: []
+  },
+  {
     title: 'Estatísticas',
     url: '/dashboard/estatisticas',
     icon: 'chart',
