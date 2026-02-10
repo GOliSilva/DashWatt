@@ -9,7 +9,7 @@ import { AlertsButton } from './alerts-button';
 
 export default function Header() {
   return (
-    <header className='flex h-14 shrink-0 items-center justify-between gap-2 px-2 transition-[width,height] ease-linear sm:px-3 md:h-16 md:px-4 group-has-data-[collapsible=icon]/sidebar-wrapper:h-12'>
+    <header className='flex h-14 shrink-0 items-center justify-between gap-2 px-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 sm:px-3 md:h-16 md:px-4'>
       <div className='flex min-w-0 items-center gap-2'>
         <SidebarTrigger className='-ml-1' />
         <Separator orientation='vertical' className='mr-2 h-4' />
@@ -19,10 +19,7 @@ export default function Header() {
       </div>
 
       <div className='flex items-center gap-1 sm:gap-2'>
-        <div className='hidden md:block'>
-          <CtaGithub />
-        </div>
-          <SearchInput />
+        <SearchInput />
         <AlertsButton />
         <UserNav />
       </div>
