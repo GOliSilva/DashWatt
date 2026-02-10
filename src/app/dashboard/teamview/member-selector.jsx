@@ -61,13 +61,15 @@ export function MemberSelector({
                         onMemberChange(member.id);
                         onSearchChange(member.name || '');
                       }}
-                      className={`hover:bg-accent focus-visible:ring-ring/50 flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none ${
+                      className={`hover:bg-accent focus-visible:ring-ring/50 flex w-full min-w-0 flex-col gap-0.5 rounded-md px-3 py-2 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none sm:flex-row sm:items-center sm:gap-2 ${
                         selectedMemberId === member.id ? 'bg-accent' : ''
                       }`}
                     >
-                      <span className='truncate'>{member.name}</span>
+                      <span className='min-w-0 truncate font-medium sm:flex-1'>
+                        {member.name}
+                      </span>
                       {member.sector ? (
-                        <span className='text-muted-foreground ml-3 text-xs'>
+                        <span className='text-muted-foreground shrink-0 text-[11px] sm:text-xs'>
                           {member.sector}
                         </span>
                       ) : null}
@@ -82,11 +84,11 @@ export function MemberSelector({
             )}
 
             {selectedMemberInfo.name ? (
-              <div className='rounded-lg border p-3'>
-                <div className='text-sm font-medium'>
+              <div className='min-w-0 rounded-lg border p-3'>
+                <div className='truncate text-sm font-medium'>
                   {selectedMemberInfo.name}
                 </div>
-                <div className='text-muted-foreground mt-0.5 text-xs'>
+                <div className='text-muted-foreground mt-0.5 truncate text-xs'>
                   {selectedMemberInfo.email || '-'}
                 </div>
                 <div className='mt-2 flex flex-wrap gap-1.5'>
