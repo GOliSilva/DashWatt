@@ -996,7 +996,7 @@ export default function AcompanhamentoPage() {
       pageDescription='Visão geral das frentes em andamento'
       pageHeaderAction={areaFilterControl}
       hideHeaderOnMobile
-      scrollable
+      scrollable={true}
     >
       <div className='flex h-full min-h-0 flex-col gap-3 md:gap-4'>
         <div className='flex min-h-0 flex-1 flex-col lg:hidden'>
