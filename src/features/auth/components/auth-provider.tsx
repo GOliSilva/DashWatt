@@ -1,12 +1,7 @@
 'use client';
 
 import { firebaseAuth, isFirebaseConfigured } from '@/lib/firebase/client';
-import {
-  browserSessionPersistence,
-  onAuthStateChanged,
-  setPersistence,
-  type User
-} from 'firebase/auth';
+import { onAuthStateChanged, type User } from 'firebase/auth';
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
 type AuthContextValue = {
@@ -27,32 +22,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    let unsubscribe = () => {};
-    let isMounted = true;
+    const unsubscribe = onAuthStateChanged(firebaseAuth, (nextUser) => {
+      setUser(nextUser);
+      setLoading(false);
+    });
 
-    const initializeAuth = async () => {
-      try {
-        await setPersistence(firebaseAuth, browserSessionPersistence);
-      } catch (error) {
-        console.error('Falha ao configurar persistencia da sessao:', error);
-      }
-
-      if (!isMounted) {
-        return;
-      }
-
-      unsubscribe = onAuthStateChanged(firebaseAuth, (nextUser) => {
-        setUser(nextUser);
-        setLoading(false);
-      });
-    };
-
-    void initializeAuth();
-
-    return () => {
-      isMounted = false;
-      unsubscribe();
-    };
+    return unsubscribe;
   }, []);
 
   const value = useMemo(

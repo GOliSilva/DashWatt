@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/features/auth/components/auth-provider';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
@@ -35,43 +35,14 @@ const sectors = [
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
-    email: '',
+    email: user?.email || '',
     sector: '',
     cpf: ''
   });
-
-  useEffect(() => {
-    if (!loading && !user) {
-      router.replace('/auth/sign-in');
-    }
-  }, [loading, user, router]);
-
-  useEffect(() => {
-    if (!user?.email) {
-      return;
-    }
-
-    setFormData((prev) => ({
-      ...prev,
-      email: user.email ?? ''
-    }));
-  }, [user?.email]);
-
-  if (loading) {
-    return (
-      <div className='flex min-h-screen items-center justify-center'>
-        <p className='text-muted-foreground'>Carregando...</p>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return null;
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,7 +79,7 @@ export default function OnboardingPage() {
     try {
       // Criar documento do membro com ID igual ao UID do usuário
       const memberRef = doc(firebaseDb, 'members', user.uid);
-
+      
       await setDoc(memberRef, {
         name: formData.name.trim(),
         email: formData.email.toLowerCase().trim(),
@@ -126,7 +97,7 @@ export default function OnboardingPage() {
       });
 
       toast.success('Cadastro concluído com sucesso!');
-
+      
       // Redirecionar para a tela individual
       router.push('/dashboard/individual');
     } catch (error) {
@@ -154,7 +125,7 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className='bg-background flex min-h-screen items-center justify-center p-4'>
+    <div className='flex min-h-screen items-center justify-center bg-background p-4'>
       <Card className='w-full max-w-lg'>
         <CardHeader className='text-center'>
           <CardTitle className='text-2xl'>Complete seu cadastro</CardTitle>
@@ -188,7 +159,7 @@ export default function OnboardingPage() {
                 disabled
                 className='bg-muted'
               />
-              <p className='text-muted-foreground text-xs'>
+              <p className='text-xs text-muted-foreground'>
                 Email vinculado à sua conta
               </p>
             </div>
@@ -196,11 +167,12 @@ export default function OnboardingPage() {
             <div className='space-y-2'>
               <Label htmlFor='sector'>Setor *</Label>
               <Select
-                value={formData.sector || undefined}
+                value={formData.sector}
                 onValueChange={(value) =>
-                  setFormData((prev) => ({ ...prev, sector: value }))
+                  setFormData({ ...formData, sector: value })
                 }
                 disabled={isSubmitting}
+                required
               >
                 <SelectTrigger id='sector'>
                   <SelectValue placeholder='Selecione seu setor' />
