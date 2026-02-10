@@ -67,7 +67,9 @@ export default function TeamviewPage() {
   const isAdmin = React.useMemo(() => {
     return (
       currentMember?.role &&
-      ['Diretor', 'Presidente', 'Assessor'].includes(currentMember.role)
+      ['diretor', 'presidente', 'assessor', 'gerente'].includes(
+        currentMember?.role?.toLowerCase().trim() ?? ''
+      )
     );
   }, [currentMember]);
 

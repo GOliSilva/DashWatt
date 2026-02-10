@@ -34,6 +34,7 @@ export function useFilteredNavItems(items: NavItem[]) {
     );
     const role = currentMember?.role?.toLowerCase().trim() ?? '';
     const sector = currentMember?.sector?.toLowerCase().trim() ?? '';
+
     const allowAcompanhamento = role !== '' && role !== 'consultor';
 
     const allowedUrls = new Set(['/dashboard/individual']);
