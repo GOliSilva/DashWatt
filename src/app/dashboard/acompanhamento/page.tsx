@@ -473,7 +473,7 @@ export default function AcompanhamentoPage() {
 
   // Atualizar leadership members quando memberList mudar
   React.useEffect(() => {
-    setLeadershipMembers(memberList.filter((member) => member.isLeadership));
+    setLeadershipMembers(memberList.filter((member) => member.role.toLowerCase() != 'consultor'));
   }, [memberList]);
 
   React.useEffect(() => {
@@ -1109,7 +1109,7 @@ export default function AcompanhamentoPage() {
             </div>
             <div className='space-y-2'>
               <div className='text-muted-foreground text-xs font-semibold uppercase'>
-                Gestao
+                Gestão
               </div>
               <div className='grid gap-3 sm:grid-cols-2'>
                 <Select
@@ -1128,7 +1128,7 @@ export default function AcompanhamentoPage() {
                     }));
                   }}
                 >
-                  <SelectTrigger aria-label='Responsável'>
+                  <SelectTrigger aria-label='Responsável' className='w-full min-w-0'>
                     <SelectValue
                       placeholder={
                         leadershipMembers.length === 0
@@ -1155,7 +1155,7 @@ export default function AcompanhamentoPage() {
                     }))
                   }
                 >
-                  <SelectTrigger aria-label='Status do projeto'>
+                  <SelectTrigger aria-label='Status do projeto' className='w-full min-w-0'>
                     <SelectValue placeholder='Status' />
                   </SelectTrigger>
                   <SelectContent>
