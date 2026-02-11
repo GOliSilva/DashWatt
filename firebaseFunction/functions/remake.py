@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta
-import logging
 import os
 from zoneinfo import ZoneInfo
 
@@ -34,6 +33,7 @@ def get_db():
 def get_user_tokens(user_id: str, db) -> list[str]:
     """Fetch user's FCM tokens from Firestore."""
     try:
+        logger.log(f"🔍 Buscando tokens para usuário: {user_id}")
         tokens_ref = db.collection("members").document(user_id).collection("fcmtokens")
         tokens_docs = tokens_ref.stream()
 
@@ -55,9 +55,10 @@ def get_user_tokens(user_id: str, db) -> list[str]:
             if fcm_token:
                 tokens.append(fcm_token)
 
+        logger.log(f"✅ Encontrados {len(tokens)} tokens para {user_id}")
         return tokens
     except Exception as exc:
-        logger.error(f"Error fetching tokens for {user_id}: {exc}")
+        logger.error(f"❌ Erro ao buscar tokens para {user_id}: {exc}")
         return []
 
 
@@ -69,10 +70,11 @@ def alert_for_consultor_pending_tasks(
     due_at=None,
 ):
     if not tokens:
-        logger.warning(f"No tokens available for owner {owner_id}")
+        logger.warning(f"⚠️ Sem tokens para consultor {owner_id}")
         return
 
     try:
+        logger.log(f"📱 Enviando alertas para consultor {owner_id} ({len(tokens)} tokens)")
         for i in range(0, len(tokens), FCM_BATCH_SIZE):
             token_chunk = tokens[i : i + FCM_BATCH_SIZE]
 
@@ -93,13 +95,19 @@ def alert_for_consultor_pending_tasks(
                 },
             )
 
-            response = messaging.send_multicast(message)
-            logger.info(
-                "Notifications sent to owner: "
-                f"{response.success_count} success, {response.failure_count} failed"
+            response = messaging.send_each_for_multicast(message)
+            logger.log(
+                f"✅ Notificações enviadas ao consultor: "
+                f"{response.success_count} sucesso, {response.failure_count} falhas"
             )
+            
+            # Log de falhas individuais
+            if response.failure_count > 0:
+                for idx, resp in enumerate(response.responses):
+                    if not resp.success:
+                        logger.error(f"❌ Token {idx}: {resp.exception}")
     except Exception as exc:
-        logger.error(f"Error sending owner alerts: {exc}")
+        logger.error(f"❌ Erro enviando alertas ao consultor: {exc}")
 
 
 def alert_for_manager_pending_tasks(
@@ -110,10 +118,11 @@ def alert_for_manager_pending_tasks(
     due_at=None,
 ):
     if not tokens:
-        logger.warning(f"No tokens available for manager {manager_id}")
+        logger.warning(f"⚠️ Sem tokens para manager {manager_id}")
         return
 
     try:
+        logger.log(f"👔 Enviando alertas para manager {manager_id} ({len(tokens)} tokens)")
         for i in range(0, len(tokens), FCM_BATCH_SIZE):
             token_chunk = tokens[i : i + FCM_BATCH_SIZE]
 
@@ -135,19 +144,31 @@ def alert_for_manager_pending_tasks(
             )
 
             response = messaging.send_multicast(message)
-            logger.info(
-                "Notifications sent to manager: "
-                f"{response.success_count} success, {response.failure_count} failed"
+            logger.log(
+                f"✅ Notificações enviadas ao manager: "
+                f"{response.success_count} sucesso, {response.failure_count} falhas"
             )
+            
+            # Log de falhas individuais
+            if response.failure_count > 0:
+                for idx, resp in enumerate(response.responses):
+                    if not resp.success:
+                        logger.error(f"❌ Token {idx}: {resp.exception}")
     except Exception as exc:
-        logger.error(f"Error sending manager alerts: {exc}")
+        logger.error(f"❌ Erro enviando alertas ao manager: {exc}")
 
 
 def analyze_tasks(project, db):
     """Analyze a single project and send alerts for pending tasks."""
     try:
-        activities = project.get("activities", [])
+        project_name = project.get("name", "Sem nome")
+        logger.log(f"📊 Analisando projeto: {project_name}")
+        
+        activities = project.get("Activities", [])
+        logger.log(f"   Total de atividades: {len(activities)}")
+        
         now_brasilia = datetime.now(ZoneInfo("America/Sao_Paulo"))
+        pending_count = 0
 
         for activity in activities:
             status = activity.get("status")
@@ -161,9 +182,11 @@ def analyze_tasks(project, db):
                 and due_at
                 and due_at < (now_brasilia + timedelta(days=7))
             ):
+                pending_count += 1
                 owner_id = activity.get("ownerId")
                 activity_name = activity.get("name")
-                project_name = project.get("name")
+
+                logger.log(f"⚠️ Tarefa pendente: '{activity_name}' vence em {due_at.strftime('%d/%m/%Y')}")
 
                 owner_tokens = get_user_tokens(owner_id, db)
                 alert_for_consultor_pending_tasks(
@@ -180,14 +203,20 @@ def analyze_tasks(project, db):
                         manager_tokens,
                         due_at,
                     )
+        
+        logger.log(f"✅ Projeto '{project_name}': {pending_count} tarefas pendentes processadas")
+        
     except Exception as exc:
-        logger.error(f"Error analyzing project tasks: {exc}")
+        logger.error(f"❌ Erro analisando projeto: {exc}")
 
 
 def run_pending_tasks_check():
     """Run pending task check for all projects."""
     try:
+        logger.log("🚀 INICIANDO verificação de tarefas pendentes")
         db = get_db()
+        logger.log("✅ Conexão com Firestore estabelecida v2")
+        
         projects = db.collection("projects").stream()
 
         project_count = 0
@@ -196,10 +225,12 @@ def run_pending_tasks_check():
             analyze_tasks(project, db)
             project_count += 1
 
-        logger.info(f"Task scan completed - {project_count} projects analyzed")
+        logger.log(f"✅ CONCLUÍDO - {project_count} projetos analisados")
         return project_count
     except Exception as exc:
-        logger.error(f"Error running pending task check: {exc}")
+        logger.error(f"❌ ERRO na verificação de tarefas: {exc}")
+        import traceback
+        logger.error(f"Stack trace: {traceback.format_exc()}")
         raise
 
 
@@ -207,9 +238,17 @@ def run_pending_tasks_check():
     schedule="every day 08:00",
     timezone="America/Sao_Paulo",
 )
-def scheduled_task(req: scheduler_fn.ScheduledEvent) -> None:
+def check_pending_tasks(req: scheduler_fn.ScheduledEvent) -> None:
     """Daily scheduled check for pending tasks."""
+    logger.log("=" * 70)
+    logger.log("🕐 CHECK_PENDING_TASKS - NOVA VERSÃO")
+    logger.log(f"⏰ Timestamp: {datetime.now(ZoneInfo('America/Sao_Paulo')).isoformat()}")
+    logger.log("=" * 70)
+    
     try:
         run_pending_tasks_check()
+        logger.log("✅ Scheduled task completed successfully")
     except Exception as exc:
-        logger.error(f"Error in scheduled task: {exc}")
+        logger.error(f"❌ ERRO CRÍTICO na scheduled task: {exc}")
+        import traceback
+        logger.error(f"Stack trace: {traceback.format_exc()}")
