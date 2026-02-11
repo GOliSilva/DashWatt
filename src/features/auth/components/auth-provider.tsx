@@ -1,6 +1,7 @@
 'use client';
 
 import { firebaseAuth, isFirebaseConfigured } from '@/lib/firebase/client';
+import { ensureFcmToken, listenForForegroundMessages } from '@/lib/firebase/fcm';
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
@@ -29,6 +30,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return unsubscribe;
   }, []);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    let unsubscribe: (() => void) | undefined;
+
+    ensureFcmToken(user.uid).catch((err) => {
+      console.warn('Falha ao registrar FCM:', err);
+    });
+
+    listenForForegroundMessages().then((off) => {
+      unsubscribe = off;
+    });
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [user?.uid]);
 
   const value = useMemo(
     () => ({
