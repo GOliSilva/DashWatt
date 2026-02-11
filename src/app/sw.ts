@@ -2,8 +2,6 @@
 
 import { Serwist } from 'serwist';
 import { defaultCache } from '@serwist/next/worker';
-import { initializeApp } from 'firebase/app';
-import { getMessaging, onBackgroundMessage, isSupported } from 'firebase/messaging/sw';
 
 declare const self: ServiceWorkerGlobalScope & {
   __SW_MANIFEST: Array<{
@@ -13,27 +11,6 @@ declare const self: ServiceWorkerGlobalScope & {
 };
 
 const OFFLINE_URL = '/dashboard/individual';
-
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ?? '',
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ?? '',
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? '',
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ?? '',
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ?? '',
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID ?? '',
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID ?? ''
-};
-
-const requiredKeys = [
-  'apiKey',
-  'authDomain',
-  'projectId',
-  'storageBucket',
-  'messagingSenderId',
-  'appId'
-] as const;
-
-const isFirebaseConfigured = requiredKeys.every((key) => firebaseConfig[key]);
 
 const serwist = new Serwist({
   precacheEntries: [
@@ -49,25 +26,6 @@ const serwist = new Serwist({
 });
 
 serwist.addEventListeners();
-
-const setupMessaging = async () => {
-  if (!isFirebaseConfigured) return;
-  if (!(await isSupported())) return;
-
-  const app = initializeApp(firebaseConfig);
-  const messaging = getMessaging(app);
-
-  onBackgroundMessage(messaging, (payload) => {
-    const title = payload.notification?.title ?? 'Notificacao';
-    const options: NotificationOptions = {
-      body: payload.notification?.body,
-      data: payload.data ?? {}
-    };
-    self.registration.showNotification(title, options);
-  });
-};
-
-setupMessaging();
 
 self.addEventListener('fetch', (event) => {
   if (event.request.mode !== 'navigate') {
