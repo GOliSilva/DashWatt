@@ -21,7 +21,6 @@ const serwist = new Serwist({
   clientsClaim: true,
   runtimeCaching: defaultCache,
 
-  // ✅ Injeta o script do Firebase dentro do SW do Serwist
   importScripts: ['/firebase-messaging-sw.js']
 });
 

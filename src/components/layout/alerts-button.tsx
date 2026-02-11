@@ -12,7 +12,6 @@ import {
 } from '@/components/ui/popover';
 import { useAuth } from '@/features/auth/components/auth-provider';
 import { useFirebaseData } from '@/contexts/firebase-data-context';
-import { useFcmToken } from '@/hooks/use-fcm';
 
 type Alert = {
   id: string;
@@ -29,22 +28,10 @@ const alertLevelStyles = {
 };
 
 export function AlertsButton() {
-  const [tryActivateNotifications, fcmToken] = useFcmToken();
   const [isActivating, setIsActivating] = React.useState(false);
   const [isOpen, setIsOpen] = React.useState(false);
   const { user } = useAuth();
   const { members } = useFirebaseData();
-
-  const handleActivateClick = React.useCallback(async () => {
-    if (!tryActivateNotifications || isActivating) return;
-
-    try {
-      setIsActivating(true);
-      await tryActivateNotifications();
-    } finally {
-      setIsActivating(false);
-    }
-  }, [isActivating, tryActivateNotifications]);
 
   const currentMember = React.useMemo(() => {
     if (!user?.uid) return null;
@@ -74,16 +61,6 @@ export function AlertsButton() {
         <div className='space-y-2'>
           <div className='flex items-center justify-between gap-2'>
             <h4 className='text-sm font-medium'>Alertas</h4>
-            {!fcmToken && (
-              <Button
-                size='sm'
-                variant='secondary'
-                onClick={() => void handleActivateClick()}
-                disabled={isActivating}
-              >
-                {isActivating ? 'Ativando...' : 'Ativar notificações'}
-              </Button>
-            )}
           </div>
           <ScrollArea className='h-64'>
             <div className='space-y-2 pr-3'>

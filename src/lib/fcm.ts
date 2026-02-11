@@ -1,16 +1,18 @@
+import { FirebaseApp } from 'firebase/app';
 import {
   getToken,
   getMessaging,
   onMessage,
   type MessagePayload
 } from 'firebase/messaging';
+import { toast } from 'sonner';
+
 import { firebaseApp } from './firebase/client';
-import { FirebaseApp } from 'firebase/app';
 
 const messaging =
   typeof window !== 'undefined' && firebaseApp
     ? getMessaging(firebaseApp as FirebaseApp)
-    : null; // check if the firebase app is initialized on the client
+    : null;
 
 export async function requestPermissionAndGetToken() {
   if (
@@ -38,8 +40,15 @@ export async function requestPermissionAndGetToken() {
 }
 
 export function handleForegroundMessage(
-  callback: (payload: MessagePayload) => void
+  callback?: (payload: MessagePayload) => void
 ) {
   if (!messaging) return null;
-  return onMessage(messaging, callback);
+  return onMessage(messaging, (payload) => {
+    const durationInSeconds = 5;
+
+    toast(payload.notification?.title || 'Nova notificação', {
+      description: payload.notification?.body || '',
+      duration: durationInSeconds * 1000
+    });
+  });
 }

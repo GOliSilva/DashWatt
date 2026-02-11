@@ -1,5 +1,13 @@
 import { useEffect, useState, useCallback } from 'react';
-import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import {
+  serverTimestamp,
+  updateDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+  addDoc
+} from 'firebase/firestore';
 import { useAuth } from '@/features/auth/components/auth-provider';
 import { firebaseDb } from '@/lib/firebase/client';
 import {
@@ -15,15 +23,28 @@ export function useFcmToken() {
     async (nextToken: string) => {
       if (!firebaseDb || !user?.uid) return;
 
+      const fcmtokensCol = collection(
+        firebaseDb,
+        'members',
+        user.uid,
+        'fcmtokens'
+      );
+
       try {
-        await setDoc(
-          doc(firebaseDb, 'members', user.uid),
-          {
+        const q = query(fcmtokensCol, where('fcmToken', '==', nextToken));
+        const snap = await getDocs(q);
+
+        if (snap.empty) {
+          await addDoc(fcmtokensCol, {
             fcmToken: nextToken,
+            fcmTokenCreatedAt: serverTimestamp(),
             fcmTokenUpdatedAt: serverTimestamp()
-          },
-          { merge: true }
-        );
+          });
+        } else {
+          await updateDoc(snap.docs[0].ref, {
+            fcmTokenUpdatedAt: serverTimestamp()
+          });
+        }
       } catch (error) {
         console.error('Erro ao salvar token do FCM no membro:', error);
       }
@@ -42,6 +63,10 @@ export function useFcmToken() {
   }, []);
 
   useEffect(() => {
+    void tryActivateNotifications();
+  }, []);
+
+  useEffect(() => {
     if (!token) return;
     void persistTokenForMember(token);
   }, [token, persistTokenForMember]);
@@ -49,11 +74,8 @@ export function useFcmToken() {
   useEffect(() => {
     if (!token) return;
 
-    const unsubscribe = handleForegroundMessage((payload) => {
+    const unsubscribe = handleForegroundMessage((payload: any) => {
       console.log('📩 New message:', payload);
-      alert(
-        `New notification: ${payload.notification?.title}: ${payload.notification?.body}`
-      );
     });
 
     return () => {
@@ -63,5 +85,5 @@ export function useFcmToken() {
     };
   }, [token]);
 
-  return [tryActivateNotifications, token] as const;
+  return token;
 }

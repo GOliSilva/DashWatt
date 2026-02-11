@@ -17,8 +17,10 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
-  const title = payload?.notification?.title || 'Nova notificação';
-  const body = payload?.notification?.body || '';
+  if (payload?.notification) return;
+
+  const title = payload?.data?.title || 'Nova notificação';
+  const body = payload?.data?.body || '';
 
   self.registration.showNotification(title, {
     body,

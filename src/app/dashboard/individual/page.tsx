@@ -20,12 +20,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger
-} from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Accordion,
   AccordionContent,
@@ -65,6 +60,7 @@ import {
   DialogTitle
 } from '@/components/ui/dialog';
 import { useAuth } from '@/features/auth/components/auth-provider';
+import { useFcmToken } from '@/hooks/use-fcm';
 
 type MemberTask = {
   id: string;
@@ -196,7 +192,8 @@ const toCachedTimeRecords = (
     .filter((record) => Boolean(record.timestamp));
 
 const fromCachedTimeRecords = (records?: CachedTimeRecord[]) => {
-  if (!Array.isArray(records)) return [] as { id: string; type: string; timestamp: any }[];
+  if (!Array.isArray(records))
+    return [] as { id: string; type: string; timestamp: any }[];
   return records.map((record) => ({
     ...record,
     timestamp: {
@@ -205,10 +202,7 @@ const fromCachedTimeRecords = (records?: CachedTimeRecord[]) => {
   }));
 };
 
-const storeMemberCache = (
-  memberId: string,
-  data: MemberCacheData
-) => {
+const storeMemberCache = (memberId: string, data: MemberCacheData) => {
   writeToStorage(STORAGE_KEYS.member, {
     memberId,
     data: {
@@ -312,11 +306,13 @@ function NotFoundMember() {
       <h2 className='font-heading my-2 text-2xl font-bold'>
         Você não está cadastrado
       </h2>
-      <p>
-        Seu email não está registrado no sistema.
-      </p>
+      <p>Seu email não está registrado no sistema.</p>
       <div className='mt-8 flex justify-center gap-2'>
-        <Button onClick={() => router.push('/dashboard')} variant='default' size='lg'>
+        <Button
+          onClick={() => router.push('/dashboard')}
+          variant='default'
+          size='lg'
+        >
           Ir para Dashboard
         </Button>
       </div>
@@ -330,7 +326,8 @@ export default function IndividualPage() {
   const [memberId, setMemberId] = React.useState('');
   const [memberNotFound, setMemberNotFound] = React.useState(false);
   const [isMemberLoading, setIsMemberLoading] = React.useState(true);
-  const [isProjectTasksLoading, setIsProjectTasksLoading] = React.useState(true);
+  const [isProjectTasksLoading, setIsProjectTasksLoading] =
+    React.useState(true);
   const [selectedDay, setSelectedDay] = React.useState<Date | undefined>(
     new Date()
   );
@@ -347,21 +344,33 @@ export default function IndividualPage() {
   const [activeTask, setActiveTask] = React.useState<MemberTask | null>(null);
   const [isTaskModalOpen, setIsTaskModalOpen] = React.useState(false);
   const [isSavingEdit, setIsSavingEdit] = React.useState(false);
-  const [deletingAgendaId, setDeletingAgendaId] = React.useState<string | null>(null);
+  const [deletingAgendaId, setDeletingAgendaId] = React.useState<string | null>(
+    null
+  );
   const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false);
-  const [taskToDelete, setTaskToDelete] = React.useState<MemberTask | null>(null);
-  const [isEditAgendaModalOpen, setIsEditAgendaModalOpen] = React.useState(false);
-  const [agendaTaskToEdit, setAgendaTaskToEdit] = React.useState<MemberTask | null>(null);
+  const [taskToDelete, setTaskToDelete] = React.useState<MemberTask | null>(
+    null
+  );
+  const [isEditAgendaModalOpen, setIsEditAgendaModalOpen] =
+    React.useState(false);
+  const [agendaTaskToEdit, setAgendaTaskToEdit] =
+    React.useState<MemberTask | null>(null);
   const [isSavingAgendaEdit, setIsSavingAgendaEdit] = React.useState(false);
-  const [timeRecords, setTimeRecords] = React.useState<{ id: string; type: string; timestamp: any }[]>([]);
+  const [timeRecords, setTimeRecords] = React.useState<
+    { id: string; type: string; timestamp: any }[]
+  >([]);
   const [isBatingPonto, setIsBatingPonto] = React.useState(false);
   const [editStatus, setEditStatus] = React.useState(statusOptions[1]);
   const [updateNote, setUpdateNote] = React.useState('');
   const [isSavingAgenda, setIsSavingAgenda] = React.useState(false);
-  const [weekTimeRecords, setWeekTimeRecords] = React.useState<{ id: string; type: string; timestamp: any }[]>([]);
+  const [weekTimeRecords, setWeekTimeRecords] = React.useState<
+    { id: string; type: string; timestamp: any }[]
+  >([]);
   const [currentRunningTime, setCurrentRunningTime] = React.useState(0);
   const [hoveredTaskId, setHoveredTaskId] = React.useState<string | null>(null);
-  const [hoveredEditTaskId, setHoveredEditTaskId] = React.useState<string | null>(null);
+  const [hoveredEditTaskId, setHoveredEditTaskId] = React.useState<
+    string | null
+  >(null);
   const [agendaForm, setAgendaForm] = React.useState({
     date: '',
     title: '',
@@ -377,6 +386,8 @@ export default function IndividualPage() {
     status: statusOptions[0]
   });
 
+  useFcmToken();
+
   const [minWeeklyHours, setMinWeeklyHours] = React.useState(4);
 
   // Subscribe to global weekly hours setting
@@ -386,7 +397,11 @@ export default function IndividualPage() {
     const unsubscribe = onSnapshot(
       globalRef,
       (docSnapshot) => {
-        console.log('GlobalInfo snapshot:', docSnapshot.exists(), docSnapshot.data());
+        console.log(
+          'GlobalInfo snapshot:',
+          docSnapshot.exists(),
+          docSnapshot.data()
+        );
         if (docSnapshot.exists()) {
           const data = docSnapshot.data();
           console.log('Semanal Hours from DB:', data.semanalHours);
@@ -490,7 +505,11 @@ export default function IndividualPage() {
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
       const weekStart = getWeekStart(new Date());
-      const allRecords = ((data as any).timeRecords || []) as { id: string; type: string; timestamp: any }[];
+      const allRecords = ((data as any).timeRecords || []) as {
+        id: string;
+        type: string;
+        timestamp: any;
+      }[];
 
       console.log('=== DEBUG PONTO ===');
       console.log('Total de registros no Firestore:', allRecords.length);
@@ -693,7 +712,9 @@ export default function IndividualPage() {
   }, [memberId]);
 
   React.useEffect(() => {
-    const hasActiveEntry = timeRecords.length > 0 && timeRecords[timeRecords.length - 1].type === 'Entrada';
+    const hasActiveEntry =
+      timeRecords.length > 0 &&
+      timeRecords[timeRecords.length - 1].type === 'Entrada';
 
     if (!hasActiveEntry) {
       setCurrentRunningTime(0);
@@ -761,12 +782,12 @@ export default function IndividualPage() {
             : `update-${Date.now()}`;
         const updateEntry: ActivityUpdate | null = noteValue
           ? {
-            id: updateId,
-            author: memberInfo.name || 'Membro',
-            authorId: memberId || undefined,
-            note: noteValue,
-            time: format(new Date(), 'dd/MM/yyyy HH:mm')
-          }
+              id: updateId,
+              author: memberInfo.name || 'Membro',
+              authorId: memberId || undefined,
+              note: noteValue,
+              time: format(new Date(), 'dd/MM/yyyy HH:mm')
+            }
           : null;
 
         const existingAgenda = Array.isArray(memberData.agendaTasks)
@@ -792,12 +813,12 @@ export default function IndividualPage() {
         const nextLocalAgenda = agendaTasks.map((task) =>
           task.id === activeTask.id
             ? {
-              ...task,
-              status: editStatus,
-              updates: updateEntry
-                ? [updateEntry, ...(task.updates ?? [])]
-                : task.updates
-            }
+                ...task,
+                status: editStatus,
+                updates: updateEntry
+                  ? [updateEntry, ...(task.updates ?? [])]
+                  : task.updates
+              }
             : task
         );
 
@@ -810,16 +831,19 @@ export default function IndividualPage() {
         setActiveTask((current) =>
           current
             ? {
-              ...current,
-              status: editStatus,
-              updates: updateEntry
-                ? [updateEntry, ...(current.updates ?? [])]
-                : current.updates
-            }
+                ...current,
+                status: editStatus,
+                updates: updateEntry
+                  ? [updateEntry, ...(current.updates ?? [])]
+                  : current.updates
+              }
             : current
         );
         setUpdateNote('');
-        storeMemberCache(memberId, buildMemberCache({ agendaTasks: nextLocalAgenda }));
+        storeMemberCache(
+          memberId,
+          buildMemberCache({ agendaTasks: nextLocalAgenda })
+        );
         toast.success('Atualização registrada.');
         return;
       }
@@ -839,30 +863,30 @@ export default function IndividualPage() {
           : `update-${Date.now()}`;
       const updateEntry: ActivityUpdate | null = noteValue
         ? {
-          id: updateId,
-          author: memberInfo.name || 'Membro',
-          authorId: memberId || undefined,
-          note: noteValue,
-          time: format(new Date(), 'dd/MM/yyyy HH:mm')
-        }
+            id: updateId,
+            author: memberInfo.name || 'Membro',
+            authorId: memberId || undefined,
+            note: noteValue,
+            time: format(new Date(), 'dd/MM/yyyy HH:mm')
+          }
         : null;
 
       const nextActivities = Array.isArray(data.Activities)
         ? data.Activities.map((activity) => {
-          if (activity.id !== activeTask.activityId) {
-            return activity;
-          }
-          const existingUpdates = Array.isArray(activity.updates)
-            ? activity.updates
-            : [];
-          return {
-            ...activity,
-            status: editStatus,
-            updates: updateEntry
-              ? [updateEntry, ...existingUpdates]
-              : existingUpdates
-          };
-        })
+            if (activity.id !== activeTask.activityId) {
+              return activity;
+            }
+            const existingUpdates = Array.isArray(activity.updates)
+              ? activity.updates
+              : [];
+            return {
+              ...activity,
+              status: editStatus,
+              updates: updateEntry
+                ? [updateEntry, ...existingUpdates]
+                : existingUpdates
+            };
+          })
         : [];
 
       await updateDoc(projectRef, {
@@ -873,12 +897,12 @@ export default function IndividualPage() {
       const nextProjectTasks = projectTasks.map((task) =>
         task.id === activeTask.id
           ? {
-            ...task,
-            status: editStatus,
-            updates: updateEntry
-              ? [updateEntry, ...(task.updates ?? [])]
-              : task.updates
-          }
+              ...task,
+              status: editStatus,
+              updates: updateEntry
+                ? [updateEntry, ...(task.updates ?? [])]
+                : task.updates
+            }
           : task
       );
 
@@ -886,12 +910,12 @@ export default function IndividualPage() {
       setActiveTask((current) =>
         current
           ? {
-            ...current,
-            status: editStatus,
-            updates: updateEntry
-              ? [updateEntry, ...(current.updates ?? [])]
-              : current.updates
-          }
+              ...current,
+              status: editStatus,
+              updates: updateEntry
+                ? [updateEntry, ...(current.updates ?? [])]
+                : current.updates
+            }
           : current
       );
       setUpdateNote('');
@@ -942,7 +966,9 @@ export default function IndividualPage() {
         return;
       }
 
-      const memberData = memberSnapshot.data() as { agendaTasks?: MemberTask[] };
+      const memberData = memberSnapshot.data() as {
+        agendaTasks?: MemberTask[];
+      };
       const existingAgenda = Array.isArray(memberData.agendaTasks)
         ? memberData.agendaTasks
         : [];
@@ -973,7 +999,10 @@ export default function IndividualPage() {
       setActiveTask((current) =>
         current?.id === agendaTaskToEdit.id ? updatedTask : current
       );
-      storeMemberCache(memberId, buildMemberCache({ agendaTasks: nextLocalAgenda }));
+      storeMemberCache(
+        memberId,
+        buildMemberCache({ agendaTasks: nextLocalAgenda })
+      );
       setIsEditAgendaModalOpen(false);
       setAgendaTaskToEdit(null);
       toast.success('Agenda atualizada.');
@@ -1008,20 +1037,29 @@ export default function IndividualPage() {
         return;
       }
 
-      const memberData = memberSnapshot.data() as { agendaTasks?: MemberTask[] };
+      const memberData = memberSnapshot.data() as {
+        agendaTasks?: MemberTask[];
+      };
       const existingAgenda = Array.isArray(memberData.agendaTasks)
         ? memberData.agendaTasks
         : [];
-      const nextAgenda = existingAgenda.filter((task) => task.id !== taskToDelete.id);
+      const nextAgenda = existingAgenda.filter(
+        (task) => task.id !== taskToDelete.id
+      );
 
       await updateDoc(memberRef, {
         agendaTasks: nextAgenda,
         updatedAt: serverTimestamp()
       });
 
-      const nextLocalAgenda = agendaTasks.filter((task) => task.id !== taskToDelete.id);
+      const nextLocalAgenda = agendaTasks.filter(
+        (task) => task.id !== taskToDelete.id
+      );
       setAgendaTasks(nextLocalAgenda);
-      storeMemberCache(memberId, buildMemberCache({ agendaTasks: nextLocalAgenda }));
+      storeMemberCache(
+        memberId,
+        buildMemberCache({ agendaTasks: nextLocalAgenda })
+      );
 
       if (activeTask?.id === taskToDelete.id) {
         setIsTaskModalOpen(false);
@@ -1044,7 +1082,11 @@ export default function IndividualPage() {
 
     setIsBatingPonto(true);
     try {
-      const type = timeRecords.length === 0 || timeRecords[timeRecords.length - 1].type === 'Saída' ? 'Entrada' : 'Saída';
+      const type =
+        timeRecords.length === 0 ||
+        timeRecords[timeRecords.length - 1].type === 'Saída'
+          ? 'Entrada'
+          : 'Saída';
 
       const newRecord = {
         id: `${Date.now()}`,
@@ -1071,7 +1113,10 @@ export default function IndividualPage() {
 
       setTimeRecords(nextTimeRecords);
       setWeekTimeRecords(nextWeekRecords);
-      storeMemberCache(memberId, buildMemberCache({ timeRecords: nextWeekRecords }));
+      storeMemberCache(
+        memberId,
+        buildMemberCache({ timeRecords: nextWeekRecords })
+      );
       toast.success(`${type} registrada`);
     } catch (error) {
       console.error('Erro ao bater ponto:', error);
@@ -1137,7 +1182,10 @@ export default function IndividualPage() {
 
       const nextAgendaTasks = [agendaTask, ...agendaTasks];
       setAgendaTasks(nextAgendaTasks);
-      storeMemberCache(memberId, buildMemberCache({ agendaTasks: nextAgendaTasks }));
+      storeMemberCache(
+        memberId,
+        buildMemberCache({ agendaTasks: nextAgendaTasks })
+      );
       setAgendaForm({
         date: '',
         title: '',
@@ -1159,7 +1207,7 @@ export default function IndividualPage() {
       <div className='flex h-screen items-center justify-center'>
         <div className='text-center'>
           <div className='inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]' />
-          <p className='mt-4 text-muted-foreground'>Carregando...</p>
+          <p className='text-muted-foreground mt-4'>Carregando...</p>
         </div>
       </div>
     );
@@ -1179,59 +1227,74 @@ export default function IndividualPage() {
         {/* Mobile Tabs */}
         <div className='block lg:hidden'>
           <Tabs defaultValue='tasks' className='w-full'>
-            <TabsList className='grid w-full grid-cols-4 h-auto'>
-              <TabsTrigger value='tasks' className='text-xs py-2'>Tarefas</TabsTrigger>
-              <TabsTrigger value='calendar' className='text-xs py-2'>Calendário</TabsTrigger>
-              <TabsTrigger value='agenda' className='text-xs py-2'>Agenda</TabsTrigger>
-              <TabsTrigger value='ponto' className='text-xs py-2'>Ponto</TabsTrigger>
+            <TabsList className='grid h-auto w-full grid-cols-4'>
+              <TabsTrigger value='tasks' className='py-2 text-xs'>
+                Tarefas
+              </TabsTrigger>
+              <TabsTrigger value='calendar' className='py-2 text-xs'>
+                Calendário
+              </TabsTrigger>
+              <TabsTrigger value='agenda' className='py-2 text-xs'>
+                Agenda
+              </TabsTrigger>
+              <TabsTrigger value='ponto' className='py-2 text-xs'>
+                Ponto
+              </TabsTrigger>
             </TabsList>
 
             {/* Tarefas Tab */}
             <TabsContent value='tasks' className='mt-3'>
               <Card>
                 <CardHeader className='pb-3'>
-                  <CardTitle className='text-lg md:text-xl'>Lista de tarefas</CardTitle>
-                  <CardDescription className='text-xs md:text-sm'>Atividades da semana</CardDescription>
+                  <CardTitle className='text-lg md:text-xl'>
+                    Lista de tarefas
+                  </CardTitle>
+                  <CardDescription className='text-xs md:text-sm'>
+                    Atividades da semana
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className='space-y-2'>
                     {isProjectTasksLoading ? (
                       <div className='space-y-2'>
                         {Array.from({ length: 4 }).map((_, index) => (
-                          <div key={`task-skeleton-${index}`} className='rounded-lg border p-3'>
+                          <div
+                            key={`task-skeleton-${index}`}
+                            className='rounded-lg border p-3'
+                          >
                             <Skeleton className='h-4 w-2/3' />
                             <Skeleton className='mt-2 h-3 w-1/3' />
                           </div>
                         ))}
                       </div>
                     ) : allTasks.length === 0 ? (
-                      <div className='text-muted-foreground text-sm py-8 text-center'>
+                      <div className='text-muted-foreground py-8 text-center text-sm'>
                         Nenhuma tarefa encontrada.
                       </div>
                     ) : (
                       <Accordion type='single' collapsible className='w-full'>
                         {allTasks.map((task) => (
                           <AccordionItem key={task.id} value={task.id}>
-
-                            <AccordionTrigger className='hover:no-underline py-3'>
-                              <div className='flex items-start justify-between gap-2 w-full pr-2'>
+                            <AccordionTrigger className='py-3 hover:no-underline'>
+                              <div className='flex w-full items-start justify-between gap-2 pr-2'>
                                 <div className='flex flex-col items-start text-left'>
-                                  <span className='text-sm font-medium line-clamp-1'>
+                                  <span className='line-clamp-1 text-sm font-medium'>
                                     {task.title}
                                   </span>
                                   <span className='text-muted-foreground text-xs'>
                                     {task.due}
-
                                   </span>
                                 </div>
-                                <div className='flex flex-col items-end gap-1 shrink-0'>
-                                  <Badge className={`${statusStyles[task.status]} text-[10px] px-1.5 py-0`}>
+                                <div className='flex shrink-0 flex-col items-end gap-1'>
+                                  <Badge
+                                    className={`${statusStyles[task.status]} px-1.5 py-0 text-[10px]`}
+                                  >
                                     {task.status}
-
                                   </Badge>
-                                  <Badge className={`${priorityStyles[task.priority]} text-[10px] px-1.5 py-0`}>
+                                  <Badge
+                                    className={`${priorityStyles[task.priority]} px-1.5 py-0 text-[10px]`}
+                                  >
                                     {task.priority}
-
                                   </Badge>
                                 </div>
                               </div>
@@ -1244,7 +1307,7 @@ export default function IndividualPage() {
                                       onClick={() => openEditAgendaTask(task)}
                                       size='sm'
                                       variant='secondary'
-                                      className='h-9 px-3 border [&_svg]:!h-[1em] [&_svg]:!w-[1em]'
+                                      className='h-9 border px-3 [&_svg]:!h-[1em] [&_svg]:!w-[1em]'
                                     >
                                       <FontAwesomeIcon
                                         icon={faPenToSquare}
@@ -1259,7 +1322,7 @@ export default function IndividualPage() {
                                       onClick={() => openDeleteAgendaTask(task)}
                                       size='sm'
                                       variant='destructive'
-                                      className='h-9 px-3 border [&_svg]:!h-[1em] [&_svg]:!w-[1em]'
+                                      className='h-9 border px-3 [&_svg]:!h-[1em] [&_svg]:!w-[1em]'
                                     >
                                       <FontAwesomeIcon
                                         icon={faXmark}
@@ -1277,7 +1340,7 @@ export default function IndividualPage() {
                                   </Button>
                                 </div>
                                 {task.description && (
-                                  <p className='text-sm text-muted-foreground text-justify break-all md:break-words'>
+                                  <p className='text-muted-foreground text-justify text-sm break-all md:break-words'>
                                     {task.description}
                                   </p>
                                 )}
@@ -1296,8 +1359,12 @@ export default function IndividualPage() {
             <TabsContent value='calendar' className='mt-3'>
               <Card>
                 <CardHeader className='pb-3'>
-                  <CardTitle className='text-lg md:text-xl'>Calendário</CardTitle>
-                  <CardDescription className='text-xs md:text-sm'>Dias com atividades</CardDescription>
+                  <CardTitle className='text-lg md:text-xl'>
+                    Calendário
+                  </CardTitle>
+                  <CardDescription className='text-xs md:text-sm'>
+                    Dias com atividades
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className='space-y-3'>
@@ -1324,24 +1391,27 @@ export default function IndividualPage() {
                     )}
 
                     <div className='rounded-lg border p-3'>
-                      <div className='text-muted-foreground text-xs font-semibold uppercase mb-2'>
+                      <div className='text-muted-foreground mb-2 text-xs font-semibold uppercase'>
                         Atividades do dia
                       </div>
-                      <div className='text-sm font-medium mb-3'>
+                      <div className='mb-3 text-sm font-medium'>
                         {selectedDayLabel || 'Selecione uma data'}
                       </div>
                       <div className='space-y-2'>
                         {isProjectTasksLoading ? (
                           <div className='space-y-2'>
                             {Array.from({ length: 2 }).map((_, index) => (
-                              <div key={`day-skeleton-${index}`} className='rounded-md border p-2'>
+                              <div
+                                key={`day-skeleton-${index}`}
+                                className='rounded-md border p-2'
+                              >
                                 <Skeleton className='h-3 w-3/4' />
                                 <Skeleton className='mt-2 h-3 w-1/3' />
                               </div>
                             ))}
                           </div>
                         ) : tasksForDay.length === 0 ? (
-                          <div className='text-muted-foreground text-sm text-center py-4'>
+                          <div className='text-muted-foreground py-4 text-center text-sm'>
                             Nenhuma atividade para este dia.
                           </div>
                         ) : (
@@ -1354,18 +1424,22 @@ export default function IndividualPage() {
                             >
                               <div className='flex items-start justify-between gap-2'>
                                 <div className='flex flex-col'>
-                                  <span className='text-sm font-medium line-clamp-1'>
+                                  <span className='line-clamp-1 text-sm font-medium'>
                                     {task.title}
                                   </span>
                                   <span className='text-muted-foreground text-xs'>
                                     {task.due}
                                   </span>
                                 </div>
-                                <div className='flex flex-col items-end gap-1 flex-shrink-0'>
-                                  <Badge className={`${statusStyles[task.status]} text-[10px] px-1.5`}>
+                                <div className='flex flex-shrink-0 flex-col items-end gap-1'>
+                                  <Badge
+                                    className={`${statusStyles[task.status]} px-1.5 text-[10px]`}
+                                  >
                                     {task.status}
                                   </Badge>
-                                  <Badge className={`${priorityStyles[task.priority]} text-[10px] px-1.5`}>
+                                  <Badge
+                                    className={`${priorityStyles[task.priority]} px-1.5 text-[10px]`}
+                                  >
                                     {task.priority}
                                   </Badge>
                                 </div>
@@ -1385,7 +1459,9 @@ export default function IndividualPage() {
               <Card>
                 <CardHeader className='pb-3'>
                   <CardTitle className='text-lg md:text-xl'>Agenda</CardTitle>
-                  <CardDescription className='text-xs md:text-sm'>Novo compromisso</CardDescription>
+                  <CardDescription className='text-xs md:text-sm'>
+                    Novo compromisso
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   {isMemberLoading ? (
@@ -1400,7 +1476,10 @@ export default function IndividualPage() {
                   ) : (
                     <div className='space-y-3'>
                       <div className='space-y-2'>
-                        <label className='text-sm font-medium' htmlFor='agendaDate'>
+                        <label
+                          className='text-sm font-medium'
+                          htmlFor='agendaDate'
+                        >
                           Data
                         </label>
                         <Input
@@ -1419,7 +1498,10 @@ export default function IndividualPage() {
                       </div>
 
                       <div className='space-y-2'>
-                        <label className='text-sm font-medium' htmlFor='agendaTitle'>
+                        <label
+                          className='text-sm font-medium'
+                          htmlFor='agendaTitle'
+                        >
                           Nome da atividade
                         </label>
                         <Input
@@ -1438,7 +1520,10 @@ export default function IndividualPage() {
                       </div>
 
                       <div className='space-y-2'>
-                        <label className='text-sm font-medium' htmlFor='agendaNotes'>
+                        <label
+                          className='text-sm font-medium'
+                          htmlFor='agendaNotes'
+                        >
                           Descrição
                         </label>
                         <Textarea
@@ -1458,7 +1543,9 @@ export default function IndividualPage() {
 
                       <div className='grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-end gap-3'>
                         <div className='space-y-2'>
-                          <label className='text-sm font-medium'>Prioridade</label>
+                          <label className='text-sm font-medium'>
+                            Prioridade
+                          </label>
                           <Select
                             value={agendaForm.priority}
                             disabled={isSavingAgenda}
@@ -1508,7 +1595,9 @@ export default function IndividualPage() {
                         </div>
 
                         <div className='space-y-2'>
-                          <span className='text-sm font-medium opacity-0'>Adicionar</span>
+                          <span className='text-sm font-medium opacity-0'>
+                            Adicionar
+                          </span>
                           <Button
                             type='button'
                             onClick={handleAddAgendaTask}
@@ -1532,32 +1621,43 @@ export default function IndividualPage() {
               <Card>
                 <CardHeader className='pb-3'>
                   <CardTitle className='text-lg md:text-xl'>Ponto</CardTitle>
-                  <CardDescription className='text-xs md:text-sm'>Horas semanais (seg-dom)</CardDescription>
+                  <CardDescription className='text-xs md:text-sm'>
+                    Horas semanais (seg-dom)
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className='flex flex-col gap-4'>
                     {(() => {
-                      const baseWorkedHours = calculateWorkedHours(weekTimeRecords);
+                      const baseWorkedHours =
+                        calculateWorkedHours(weekTimeRecords);
                       const runningHours = currentRunningTime / 3600;
                       const workedHours = baseWorkedHours + runningHours;
                       const isPaid = workedHours >= minWeeklyHours;
-                      const progressPercent = Math.min((workedHours / minWeeklyHours) * 100, 100);
-                      const hasActiveEntry = timeRecords.length > 0 && timeRecords[timeRecords.length - 1].type === 'Entrada';
+                      const progressPercent = Math.min(
+                        (workedHours / minWeeklyHours) * 100,
+                        100
+                      );
+                      const hasActiveEntry =
+                        timeRecords.length > 0 &&
+                        timeRecords[timeRecords.length - 1].type === 'Entrada';
 
                       return (
                         <>
-                          <div className='text-center py-4'>
-                            <div className='text-4xl md:text-5xl font-bold'>
+                          <div className='py-4 text-center'>
+                            <div className='text-4xl font-bold md:text-5xl'>
                               {workedHours.toFixed(2)}h
                             </div>
-                            <div className='text-muted-foreground text-xs mt-1'>
+                            <div className='text-muted-foreground mt-1 text-xs'>
                               de {minWeeklyHours}h trabalhadas
                             </div>
                           </div>
 
                           <div className='space-y-2'>
-                            <Progress value={progressPercent} className='h-2.5' />
-                            <div className='flex justify-between text-xs text-muted-foreground'>
+                            <Progress
+                              value={progressPercent}
+                              className='h-2.5'
+                            />
+                            <div className='text-muted-foreground flex justify-between text-xs'>
                               <span>0h</span>
                               <span>{minWeeklyHours}h</span>
                             </div>
@@ -1565,10 +1665,11 @@ export default function IndividualPage() {
 
                           {isPaid && hasActiveEntry && (
                             <div className='rounded-lg border border-amber-500 bg-amber-500/10 p-3 text-center'>
-                              <div className='text-amber-600 font-semibold text-sm'>
-                                ⚠ Entrada ativa com {minWeeklyHours}h+ trabalhadas
+                              <div className='text-sm font-semibold text-amber-600'>
+                                ⚠ Entrada ativa com {minWeeklyHours}h+
+                                trabalhadas
                               </div>
-                              <div className='text-muted-foreground text-xs mt-1'>
+                              <div className='text-muted-foreground mt-1 text-xs'>
                                 Registre a saída para contabilizar
                               </div>
                             </div>
@@ -1576,11 +1677,12 @@ export default function IndividualPage() {
 
                           {isPaid && !hasActiveEntry && (
                             <div className='rounded-lg border border-green-500 bg-green-500/10 p-3 text-center'>
-                              <div className='text-green-600 font-semibold text-sm'>
+                              <div className='text-sm font-semibold text-green-600'>
                                 ✔ Horas semanais pagas
                               </div>
-                              <div className='text-muted-foreground text-xs mt-1'>
-                                {workedHours.toFixed(2)}h / {minWeeklyHours}h completadas
+                              <div className='text-muted-foreground mt-1 text-xs'>
+                                {workedHours.toFixed(2)}h / {minWeeklyHours}h
+                                completadas
                               </div>
                             </div>
                           )}
@@ -1588,27 +1690,43 @@ export default function IndividualPage() {
                           <Button
                             onClick={handleBaterPonto}
                             disabled={isBatingPonto}
-                            className='w-full h-12'
+                            className='h-12 w-full'
                             size='lg'
                           >
-                            {isBatingPonto ? 'Registrando...' : timeRecords.length === 0 || timeRecords[timeRecords.length - 1].type === 'Saída' ? 'Registrar Entrada' : 'Registrar Saída'}
+                            {isBatingPonto
+                              ? 'Registrando...'
+                              : timeRecords.length === 0 ||
+                                  timeRecords[timeRecords.length - 1].type ===
+                                    'Saída'
+                                ? 'Registrar Entrada'
+                                : 'Registrar Saída'}
                           </Button>
 
-                          <div className='space-y-2 mt-4'>
+                          <div className='mt-4 space-y-2'>
                             <div className='text-muted-foreground text-xs font-medium uppercase'>
                               Registros de Hoje
                             </div>
                             {timeRecords.length === 0 ? (
-                              <div className='text-muted-foreground text-sm text-center py-6 border rounded-lg'>
+                              <div className='text-muted-foreground rounded-lg border py-6 text-center text-sm'>
                                 Nenhum registro hoje
                               </div>
                             ) : (
                               <div className='space-y-2'>
                                 {timeRecords.map((record) => (
-                                  <div key={record.id} className='flex items-center justify-between rounded-lg border p-3'>
-                                    <span className='text-sm font-medium'>{record.type}</span>
-                                    <span className='text-muted-foreground text-sm font-mono'>
-                                      {record.timestamp?.toDate ? format(record.timestamp.toDate(), 'HH:mm:ss') : '--:--:--'}
+                                  <div
+                                    key={record.id}
+                                    className='flex items-center justify-between rounded-lg border p-3'
+                                  >
+                                    <span className='text-sm font-medium'>
+                                      {record.type}
+                                    </span>
+                                    <span className='text-muted-foreground font-mono text-sm'>
+                                      {record.timestamp?.toDate
+                                        ? format(
+                                            record.timestamp.toDate(),
+                                            'HH:mm:ss'
+                                          )
+                                        : '--:--:--'}
                                     </span>
                                   </div>
                                 ))}
@@ -1626,7 +1744,7 @@ export default function IndividualPage() {
         </div>
 
         {/* Desktop Grid */}
-        <div className='hidden lg:grid lg:grid-cols-2 gap-4'>
+        <div className='hidden gap-4 lg:grid lg:grid-cols-2'>
           <Card className='h-105'>
             <CardHeader>
               <CardTitle>Lista de tarefas</CardTitle>
@@ -1638,7 +1756,10 @@ export default function IndividualPage() {
                   {isProjectTasksLoading ? (
                     <div className='space-y-2'>
                       {Array.from({ length: 4 }).map((_, index) => (
-                        <div key={`task-skeleton-${index}`} className='rounded-md border p-3'>
+                        <div
+                          key={`task-skeleton-${index}`}
+                          className='rounded-md border p-3'
+                        >
                           <Skeleton className='h-4 w-2/3' />
                           <Skeleton className='mt-2 h-3 w-1/3' />
                         </div>
@@ -1666,12 +1787,13 @@ export default function IndividualPage() {
                           setHoveredTaskId(null);
                           setHoveredEditTaskId(null);
                         }}
-                        className={`focus-visible:ring-ring/50 w-full rounded-md border p-3 text-left transition-colors focus-visible:ring-[3px] focus-visible:outline-none ${hoveredTaskId === task.id && hoveredEditTaskId !== task.id
-                          ? 'bg-accent'
-                          : ''
-                          }`}
+                        className={`focus-visible:ring-ring/50 w-full rounded-md border p-3 text-left transition-colors focus-visible:ring-[3px] focus-visible:outline-none ${
+                          hoveredTaskId === task.id &&
+                          hoveredEditTaskId !== task.id
+                            ? 'bg-accent'
+                            : ''
+                        }`}
                       >
-
                         <div className='flex items-center justify-between gap-3'>
                           <div className='flex flex-col'>
                             <span className='text-sm font-medium'>
@@ -1679,10 +1801,9 @@ export default function IndividualPage() {
                             </span>
                             <span className='text-muted-foreground text-xs'>
                               Prazo: {task.due}
-
                             </span>
                             {task.description ? (
-                              <span className='text-muted-foreground text-justify text-xs line-clamp-2 break-all'>
+                              <span className='text-muted-foreground line-clamp-2 text-justify text-xs break-all'>
                                 {task.description}
                               </span>
                             ) : null}
@@ -1691,25 +1812,31 @@ export default function IndividualPage() {
                             {task.source === 'agenda' ? (
                               <div
                                 className='flex items-center gap-1'
-                                onPointerEnter={() => setHoveredEditTaskId(task.id)}
-                                onPointerMove={() => setHoveredEditTaskId(task.id)}
-                                onPointerLeave={() => setHoveredEditTaskId(null)}
+                                onPointerEnter={() =>
+                                  setHoveredEditTaskId(task.id)
+                                }
+                                onPointerMove={() =>
+                                  setHoveredEditTaskId(task.id)
+                                }
+                                onPointerLeave={() =>
+                                  setHoveredEditTaskId(null)
+                                }
                               >
                                 <Button
                                   type='button'
                                   size='icon'
                                   variant='ghost'
-                                  className='h-9 w-9 cursor-pointer self-center rounded-md border  hover:bg-white/10 [&_svg]:!h-[1em] [&_svg]:!w-[1em]'
+                                  className='h-9 w-9 cursor-pointer self-center rounded-md border hover:bg-white/10 [&_svg]:!h-[1em] [&_svg]:!w-[1em]'
                                   onClick={(event) => {
                                     event.stopPropagation();
                                     openEditAgendaTask(task);
                                   }}
                                   aria-label='Editar tarefa da agenda'
                                 >
-                                  <FontAwesomeIcon icon={faPenToSquare} size="lg" />
-
-
-
+                                  <FontAwesomeIcon
+                                    icon={faPenToSquare}
+                                    size='lg'
+                                  />
                                 </Button>
                                 <Button
                                   type='button'
@@ -1722,7 +1849,7 @@ export default function IndividualPage() {
                                   }}
                                   aria-label='Excluir tarefa da agenda'
                                 >
-                                  <FontAwesomeIcon icon={faXmark} size="lg" />
+                                  <FontAwesomeIcon icon={faXmark} size='lg' />
                                 </Button>
                               </div>
                             ) : null}
@@ -1734,7 +1861,6 @@ export default function IndividualPage() {
                                 {task.priority}
                               </Badge>
                             </div>
-
                           </div>
                         </div>
                       </div>
@@ -1782,7 +1908,10 @@ export default function IndividualPage() {
                       {isProjectTasksLoading ? (
                         <div className='space-y-2'>
                           {Array.from({ length: 3 }).map((_, index) => (
-                            <div key={`day-skeleton-${index}`} className='rounded-md border p-2'>
+                            <div
+                              key={`day-skeleton-${index}`}
+                              className='rounded-md border p-2'
+                            >
                               <Skeleton className='h-3 w-3/4' />
                               <Skeleton className='mt-2 h-3 w-1/3' />
                             </div>
@@ -1813,7 +1942,9 @@ export default function IndividualPage() {
                                 <Badge className={statusStyles[task.status]}>
                                   {task.status}
                                 </Badge>
-                                <Badge className={priorityStyles[task.priority]}>
+                                <Badge
+                                  className={priorityStyles[task.priority]}
+                                >
                                   {task.priority}
                                 </Badge>
                               </div>
@@ -1848,7 +1979,10 @@ export default function IndividualPage() {
                   <>
                     <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
                       <div className='space-y-1'>
-                        <label className='text-sm font-medium' htmlFor='agendaDate'>
+                        <label
+                          className='text-sm font-medium'
+                          htmlFor='agendaDate'
+                        >
                           Data
                         </label>
                         <Input
@@ -1886,7 +2020,10 @@ export default function IndividualPage() {
                       </div>
                     </div>
                     <div className='space-y-1'>
-                      <label className='text-sm font-medium' htmlFor='agendaNotes'>
+                      <label
+                        className='text-sm font-medium'
+                        htmlFor='agendaNotes'
+                      >
                         Descrição
                       </label>
                       <Textarea
@@ -1905,7 +2042,9 @@ export default function IndividualPage() {
                     </div>
                     <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
                       <div className='space-y-1'>
-                        <label className='text-sm font-medium'>Prioridade</label>
+                        <label className='text-sm font-medium'>
+                          Prioridade
+                        </label>
                         <Select
                           value={agendaForm.priority}
                           disabled={isSavingAgenda}
@@ -1980,18 +2119,23 @@ export default function IndividualPage() {
                   const runningHours = currentRunningTime / 3600;
                   const workedHours = baseWorkedHours + runningHours;
                   const isPaid = workedHours >= 4;
-                  const progressPercent = Math.min((workedHours / 4) * 100, 100);
-                  const hasActiveEntry = timeRecords.length > 0 && timeRecords[timeRecords.length - 1].type === 'Entrada';
+                  const progressPercent = Math.min(
+                    (workedHours / 4) * 100,
+                    100
+                  );
+                  const hasActiveEntry =
+                    timeRecords.length > 0 &&
+                    timeRecords[timeRecords.length - 1].type === 'Entrada';
 
                   return (
                     <>
                       {isPaid && hasActiveEntry ? (
                         <>
                           <div className='rounded-md border border-amber-500 bg-amber-500/10 p-4 text-center'>
-                            <div className='text-amber-600 font-semibold text-sm'>
+                            <div className='text-sm font-semibold text-amber-600'>
                               ⚠ Entrada ativa com 4h+ trabalhadas
                             </div>
-                            <div className='text-muted-foreground text-xs mt-1'>
+                            <div className='text-muted-foreground mt-1 text-xs'>
                               Registre a saída para contabilizar as horas pagas
                             </div>
                           </div>
@@ -2003,7 +2147,9 @@ export default function IndividualPage() {
                             size='lg'
                             variant='default'
                           >
-                            {isBatingPonto ? 'Registrando...' : 'Registrar Saída'}
+                            {isBatingPonto
+                              ? 'Registrando...'
+                              : 'Registrar Saída'}
                           </Button>
 
                           <div className='text-center'>
@@ -2017,7 +2163,7 @@ export default function IndividualPage() {
 
                           <div className='space-y-2'>
                             <Progress value={progressPercent} className='h-3' />
-                            <div className='flex justify-between text-xs text-muted-foreground'>
+                            <div className='text-muted-foreground flex justify-between text-xs'>
                               <span>0h</span>
                               <span>4h</span>
                             </div>
@@ -2025,11 +2171,12 @@ export default function IndividualPage() {
                         </>
                       ) : isPaid ? (
                         <div className='rounded-md border border-green-500 bg-green-500/10 p-4 text-center'>
-                          <div className='text-green-600 font-semibold text-sm'>
+                          <div className='text-sm font-semibold text-green-600'>
                             ✔ Horas semanais pagas
                           </div>
-                          <div className='text-muted-foreground text-xs mt-1'>
-                            {workedHours.toFixed(2)}h / {minWeeklyHours}h completadas
+                          <div className='text-muted-foreground mt-1 text-xs'>
+                            {workedHours.toFixed(2)}h / {minWeeklyHours}h
+                            completadas
                           </div>
                         </div>
                       ) : (
@@ -2040,7 +2187,13 @@ export default function IndividualPage() {
                             className='w-full'
                             size='lg'
                           >
-                            {isBatingPonto ? 'Registrando...' : timeRecords.length === 0 || timeRecords[timeRecords.length - 1].type === 'Saída' ? 'Registrar Entrada' : 'Registrar Saída'}
+                            {isBatingPonto
+                              ? 'Registrando...'
+                              : timeRecords.length === 0 ||
+                                  timeRecords[timeRecords.length - 1].type ===
+                                    'Saída'
+                                ? 'Registrar Entrada'
+                                : 'Registrar Saída'}
                           </Button>
 
                           <div className='text-center'>
@@ -2054,7 +2207,7 @@ export default function IndividualPage() {
 
                           <div className='space-y-2'>
                             <Progress value={progressPercent} className='h-3' />
-                            <div className='flex justify-between text-xs text-muted-foreground'>
+                            <div className='text-muted-foreground flex justify-between text-xs'>
                               <span>0h</span>
                               <span>4h</span>
                             </div>
@@ -2064,17 +2217,29 @@ export default function IndividualPage() {
 
                       <ScrollArea className='h-32'>
                         <div className='space-y-2'>
-                          <div className='text-muted-foreground text-xs font-medium'>Hoje</div>
+                          <div className='text-muted-foreground text-xs font-medium'>
+                            Hoje
+                          </div>
                           {timeRecords.length === 0 ? (
-                            <div className='text-muted-foreground text-xs text-center py-4'>
+                            <div className='text-muted-foreground py-4 text-center text-xs'>
                               Nenhum registro hoje
                             </div>
                           ) : (
                             timeRecords.map((record) => (
-                              <div key={record.id} className='flex items-center justify-between rounded-md border p-2'>
-                                <span className='text-sm font-medium'>{record.type}</span>
+                              <div
+                                key={record.id}
+                                className='flex items-center justify-between rounded-md border p-2'
+                              >
+                                <span className='text-sm font-medium'>
+                                  {record.type}
+                                </span>
                                 <span className='text-muted-foreground text-xs'>
-                                  {record.timestamp?.toDate ? format(record.timestamp.toDate(), 'HH:mm:ss') : '--:--:--'}
+                                  {record.timestamp?.toDate
+                                    ? format(
+                                        record.timestamp.toDate(),
+                                        'HH:mm:ss'
+                                      )
+                                    : '--:--:--'}
                                 </span>
                               </div>
                             ))
@@ -2090,9 +2255,11 @@ export default function IndividualPage() {
         </div>
       </div>
       <Dialog open={isTaskModalOpen} onOpenChange={setIsTaskModalOpen}>
-        <DialogContent className='max-w-[95vw] md:max-w-2xl max-h-[90vh] overflow-y-auto'>
+        <DialogContent className='max-h-[90vh] max-w-[95vw] overflow-y-auto md:max-w-2xl'>
           <DialogHeader>
-            <DialogTitle className='text-lg md:text-xl pr-8'>{activeTask?.title ?? 'Atividade'}</DialogTitle>
+            <DialogTitle className='pr-8 text-lg md:text-xl'>
+              {activeTask?.title ?? 'Atividade'}
+            </DialogTitle>
             <DialogDescription className='text-xs md:text-sm'>
               {activeTask?.projectName
                 ? `Projeto: ${activeTask.projectName}`
@@ -2102,13 +2269,19 @@ export default function IndividualPage() {
           <div className='grid gap-3 md:gap-4'>
             <div className='grid grid-cols-2 gap-2'>
               <div className='rounded-lg border p-3 text-sm'>
-                <div className='text-muted-foreground text-xs mb-1'>Prazo</div>
-                <div className='font-medium text-xs md:text-sm'>{activeTask?.due || '--'}</div>
+                <div className='text-muted-foreground mb-1 text-xs'>Prazo</div>
+                <div className='text-xs font-medium md:text-sm'>
+                  {activeTask?.due || '--'}
+                </div>
               </div>
               <div className='rounded-lg border p-3 text-sm'>
-                <div className='text-muted-foreground text-xs mb-1'>Prioridade</div>
+                <div className='text-muted-foreground mb-1 text-xs'>
+                  Prioridade
+                </div>
                 {activeTask ? (
-                  <Badge className={`${priorityStyles[activeTask.priority]} text-xs`}>
+                  <Badge
+                    className={`${priorityStyles[activeTask.priority]} text-xs`}
+                  >
                     {activeTask.priority}
                   </Badge>
                 ) : (
@@ -2118,8 +2291,10 @@ export default function IndividualPage() {
             </div>
 
             <details className='rounded-lg border p-3 text-sm'>
-              <summary className='cursor-pointer text-sm font-medium'>Descrição</summary>
-              <div className='mt-2 text-sm text-justify break-all whitespace-pre-wrap'>
+              <summary className='cursor-pointer text-sm font-medium'>
+                Descrição
+              </summary>
+              <div className='mt-2 text-justify text-sm break-all whitespace-pre-wrap'>
                 {activeTask?.description?.trim() || 'Sem descrição'}
               </div>
             </details>
@@ -2157,7 +2332,9 @@ export default function IndividualPage() {
             </div>
 
             <div className='space-y-2'>
-              <label className='text-sm font-medium'>Adicionar atualização</label>
+              <label className='text-sm font-medium'>
+                Adicionar atualização
+              </label>
               <Textarea
                 placeholder='Descreva sua atualização'
                 className='min-h-20'
@@ -2168,12 +2345,17 @@ export default function IndividualPage() {
             </div>
 
             <div className='rounded-lg border p-3'>
-              <div className='text-sm font-medium mb-3'>Atualizações anteriores</div>
-              <div className='space-y-2 max-h-60 overflow-y-auto'>
+              <div className='mb-3 text-sm font-medium'>
+                Atualizações anteriores
+              </div>
+              <div className='max-h-60 space-y-2 overflow-y-auto'>
                 {activeTask?.updates && activeTask.updates.length > 0 ? (
                   activeTask.updates.map((update) => (
-                    <div key={update.id} className='rounded-lg border bg-muted/30 p-3'>
-                      <div className='flex items-start justify-between gap-2 mb-1'>
+                    <div
+                      key={update.id}
+                      className='bg-muted/30 rounded-lg border p-3'
+                    >
+                      <div className='mb-1 flex items-start justify-between gap-2'>
                         <div className='text-xs font-medium'>
                           {update.author}
                         </div>
@@ -2181,13 +2363,13 @@ export default function IndividualPage() {
                           {update.time}
                         </div>
                       </div>
-                      <div className='text-sm text-justify pr-3'>
+                      <div className='pr-3 text-justify text-sm'>
                         {update.note}
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div className='text-muted-foreground text-sm text-center py-4'>
+                  <div className='text-muted-foreground py-4 text-center text-sm'>
                     Sem atualizações
                   </div>
                 )}
@@ -2196,7 +2378,12 @@ export default function IndividualPage() {
           </div>
           {activeTask?.projectId ? (
             <DialogFooter className='flex-col gap-2 sm:flex-row sm:gap-0'>
-              <Button asChild type='button' variant='secondary' className='w-full sm:w-auto'>
+              <Button
+                asChild
+                type='button'
+                variant='secondary'
+                className='w-full sm:w-auto'
+              >
                 <Link
                   href={`/dashboard/acompanhamento/projetos/${activeTask.projectId}`}
                 >
@@ -2207,7 +2394,10 @@ export default function IndividualPage() {
           ) : null}
         </DialogContent>
       </Dialog>
-      <Dialog open={isEditAgendaModalOpen} onOpenChange={setIsEditAgendaModalOpen}>
+      <Dialog
+        open={isEditAgendaModalOpen}
+        onOpenChange={setIsEditAgendaModalOpen}
+      >
         <DialogContent className='max-w-[95vw] sm:max-w-lg'>
           <DialogHeader>
             <DialogTitle>Editar tarefa da agenda</DialogTitle>
@@ -2235,7 +2425,10 @@ export default function IndividualPage() {
                 />
               </div>
               <div className='space-y-1'>
-                <label className='text-sm font-medium' htmlFor='editAgendaTitle'>
+                <label
+                  className='text-sm font-medium'
+                  htmlFor='editAgendaTitle'
+                >
                   Nome da atividade
                 </label>
                 <Input
@@ -2358,7 +2551,6 @@ export default function IndividualPage() {
               variant='secondary'
               onClick={() => setIsDeleteModalOpen(false)}
               disabled={Boolean(deletingAgendaId)}
-
             >
               Cancelar
             </Button>
