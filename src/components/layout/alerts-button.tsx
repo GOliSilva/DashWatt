@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/popover';
 import { useAuth } from '@/features/auth/components/auth-provider';
 import { useFirebaseData } from '@/contexts/firebase-data-context';
+import { useFcmToken } from '@/hooks/use-fcm';
 
 type Alert = {
   id: string;
@@ -30,6 +31,7 @@ const alertLevelStyles = {
 export function AlertsButton() {
   const [isActivating, setIsActivating] = React.useState(false);
   const [isOpen, setIsOpen] = React.useState(false);
+  const [token, tryActtivateNotifications] = useFcmToken();
   const { user } = useAuth();
   const { members } = useFirebaseData();
 
@@ -44,6 +46,15 @@ export function AlertsButton() {
   }, [currentMember]);
 
   if (!user) return null;
+
+  const handleActivateNotifications = async () => {
+    setIsActivating(true);
+    try {
+      await tryActtivateNotifications();
+    } finally {
+      setIsActivating(false);
+    }
+  };
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -61,6 +72,13 @@ export function AlertsButton() {
         <div className='space-y-2'>
           <div className='flex items-center justify-between gap-2'>
             <h4 className='text-sm font-medium'>Alertas</h4>
+            <Button
+              onClick={handleActivateNotifications}
+              disabled={isActivating}
+              size='sm'
+            >
+              Ativar notificações
+            </Button>
           </div>
           <ScrollArea className='h-64'>
             <div className='space-y-2 pr-3'>

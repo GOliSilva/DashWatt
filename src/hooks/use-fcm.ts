@@ -85,5 +85,5 @@ export function useFcmToken() {
     };
   }, [token]);
 
-  return token;
+  return [token, tryActivateNotifications] as const;
 }
