@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/popover';
 import { useAuth } from '@/features/auth/components/auth-provider';
 import { useFirebaseData } from '@/contexts/firebase-data-context';
+import { useFcmToken } from '@/hooks/use-fcm';
 
 type Alert = {
   id: string;
@@ -28,10 +29,23 @@ const alertLevelStyles = {
 };
 
 export function AlertsButton() {
+  const [tryActivateNotifications, fcmToken] = useFcmToken();
+  const [isActivating, setIsActivating] = React.useState(false);
   const [isOpen, setIsOpen] = React.useState(false);
   const { user } = useAuth();
   const { members } = useFirebaseData();
-  
+
+  const handleActivateClick = React.useCallback(async () => {
+    if (!tryActivateNotifications || isActivating) return;
+
+    try {
+      setIsActivating(true);
+      await tryActivateNotifications();
+    } finally {
+      setIsActivating(false);
+    }
+  }, [isActivating, tryActivateNotifications]);
+
   const currentMember = React.useMemo(() => {
     if (!user?.uid) return null;
     return members.find((m) => m.id === user.uid);
@@ -58,11 +72,23 @@ export function AlertsButton() {
       </PopoverTrigger>
       <PopoverContent className='w-80' align='end'>
         <div className='space-y-2'>
-          <h4 className='font-medium text-sm'>Alertas</h4>
+          <div className='flex items-center justify-between gap-2'>
+            <h4 className='text-sm font-medium'>Alertas</h4>
+            {!fcmToken && (
+              <Button
+                size='sm'
+                variant='secondary'
+                onClick={() => void handleActivateClick()}
+                disabled={isActivating}
+              >
+                {isActivating ? 'Ativando...' : 'Ativar notificações'}
+              </Button>
+            )}
+          </div>
           <ScrollArea className='h-64'>
             <div className='space-y-2 pr-3'>
               {alerts.length === 0 ? (
-                <div className='text-muted-foreground text-sm py-4 text-center'>
+                <div className='text-muted-foreground py-4 text-center text-sm'>
                   Nenhum alerta
                 </div>
               ) : (
@@ -72,9 +98,7 @@ export function AlertsButton() {
                     className='flex items-start justify-between gap-3 rounded-md border p-3'
                   >
                     <div className='flex flex-col'>
-                      <span className='text-sm font-medium'>
-                        {alert.title}
-                      </span>
+                      <span className='text-sm font-medium'>{alert.title}</span>
                       <span className='text-muted-foreground text-xs'>
                         {alert.detail}
                       </span>

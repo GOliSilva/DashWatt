@@ -1,6 +1,7 @@
 import { initializeApp, getApps } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import { getMessaging } from 'firebase/messaging';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ?? '',
@@ -24,7 +25,7 @@ const requiredKeys = [
 const isFirebaseConfigured = requiredKeys.every((key) => firebaseConfig[key]);
 
 const firebaseApp = isFirebaseConfigured
-  ? getApps()[0] ?? initializeApp(firebaseConfig)
+  ? (getApps()[0] ?? initializeApp(firebaseConfig))
   : null;
 
 const firebaseAuth = firebaseApp ? getAuth(firebaseApp) : null;
@@ -35,5 +36,6 @@ export {
   firebaseAuth,
   firebaseDb,
   firebaseConfig,
-  isFirebaseConfigured
+  isFirebaseConfigured,
+  getMessaging
 };

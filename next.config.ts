@@ -21,7 +21,7 @@ const withSerwistConfig = withSerwist({
   swSrc: 'src/app/sw.ts',
   swDest: 'public/sw.js',
   disable:
-    process.env.NODE_ENV !== 'production' &&
+    process.env.NODE_ENV !== 'production' ||
     process.env.NEXT_PUBLIC_ENABLE_SW !== 'true'
 });
 

@@ -15,15 +15,17 @@ const OFFLINE_URL = '/dashboard/individual';
 const serwist = new Serwist({
   precacheEntries: [
     ...self.__SW_MANIFEST,
-    {
-      url: OFFLINE_URL,
-      revision: null
-    }
+    { url: OFFLINE_URL, revision: null }
   ],
   skipWaiting: true,
   clientsClaim: true,
-  runtimeCaching: defaultCache
+  runtimeCaching: defaultCache,
+
+  // ✅ Injeta o script do Firebase dentro do SW do Serwist
+  importScripts: ['/firebase-messaging-sw.js']
 });
+
+serwist.addEventListeners();
 
 serwist.addEventListeners();
 

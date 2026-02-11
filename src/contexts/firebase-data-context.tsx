@@ -2,7 +2,13 @@
 
 import * as React from 'react';
 import { firebaseDb } from '@/lib/firebase/client';
-import { collection, doc, onSnapshot, orderBy, query } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  onSnapshot,
+  orderBy,
+  query
+} from 'firebase/firestore';
 import { useAuth } from '@/features/auth/components/auth-provider';
 
 export type Project = {
@@ -35,6 +41,8 @@ export type Member = {
   activity?: string;
   status?: string;
   isLeadership?: boolean;
+  fcmToken?: string;
+  fcmTokenUpdatedAt?: any;
   createdAt?: any;
   updatedAt?: any;
 };
@@ -47,9 +55,15 @@ type FirebaseDataContextType = {
   currentMember: Member | null;
 };
 
-const FirebaseDataContext = React.createContext<FirebaseDataContextType | undefined>(undefined);
+const FirebaseDataContext = React.createContext<
+  FirebaseDataContextType | undefined
+>(undefined);
 
-export function FirebaseDataProvider({ children }: { children: React.ReactNode }) {
+export function FirebaseDataProvider({
+  children
+}: {
+  children: React.ReactNode;
+}) {
   const [projects, setProjects] = React.useState<Project[]>([]);
   const [members, setMembers] = React.useState<Member[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -188,7 +202,9 @@ export function FirebaseDataProvider({ children }: { children: React.ReactNode }
   }, [currentMember]);
 
   return (
-    <FirebaseDataContext.Provider value={{ projects, members, isLoading, error, currentMember }}>
+    <FirebaseDataContext.Provider
+      value={{ projects, members, isLoading, error, currentMember }}
+    >
       {children}
     </FirebaseDataContext.Provider>
   );
@@ -197,7 +213,9 @@ export function FirebaseDataProvider({ children }: { children: React.ReactNode }
 export function useFirebaseData() {
   const context = React.useContext(FirebaseDataContext);
   if (context === undefined) {
-    throw new Error('useFirebaseData must be used within a FirebaseDataProvider');
+    throw new Error(
+      'useFirebaseData must be used within a FirebaseDataProvider'
+    );
   }
   return context;
 }
